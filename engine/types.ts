@@ -21,7 +21,7 @@ export interface Option {
 export interface ChecklistItem {
   id: string;
   label: string;
-  type: "text" | "photo" | "info" | "multiple" | "section" | "camera";
+  type: "text" | "photo" | "info" | "multiple" | "section" | "camera" | "date";
   action?: string;
   allowPhoto?: boolean;
   placeholder?: string;

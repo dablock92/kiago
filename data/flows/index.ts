@@ -98,7 +98,7 @@ export const choqueFlow: Flow = {
           allowPhoto: true,
           required: true,
           placeholder: "Ingrese nombre o foto",
-          hint: "Dato normalmente intercambiado",
+          hint: "Este dato lo necesita la otra persona involucrada también, asegurate de brindar el tuyo.",
         },
         {
           id: "poliza_num",
@@ -107,7 +107,7 @@ export const choqueFlow: Flow = {
           allowPhoto: true,
           required: true,
           placeholder: "Escribe el número o toma foto",
-          hint: "También podés compartir esta información",
+          hint: "Este dato lo necesita la otra persona involucrada también, asegurate de brindar el tuyo.",
         },
         {
           id: "vigencia_seguro",
@@ -125,7 +125,7 @@ export const choqueFlow: Flow = {
           allowPhoto: true,
           required: true,
           placeholder: "Ej: AF 123 BK o toma foto",
-          hint: "Habitualmente compartido entre ambas partes",
+          hint: "Este dato lo necesita la otra persona involucrada también, asegurate de brindar el tuyo.",
         },
         {
           id: "nombre_titular",
@@ -134,7 +134,7 @@ export const choqueFlow: Flow = {
           allowPhoto: true,
           required: true,
           placeholder: "Nombre como figura en cédula",
-          hint: "Dato normalmente intercambiado",
+          hint: "Este dato lo necesita la otra persona involucrada también, asegurate de brindar el tuyo.",
         },
         { id: "sec_conductor", label: "DATOS DEL CONDUCTOR", type: "section" },
         {
@@ -142,7 +142,7 @@ export const choqueFlow: Flow = {
           label: "Conductor (Nombre y Apellido)",
           type: "text",
           required: true,
-          hint: "Habitualmente compartido entre ambas partes",
+          hint: "Este dato lo necesita la otra persona involucrada también, asegurate de brindar el tuyo.",
           fields: [
             {
               id: "nombre",
@@ -177,7 +177,7 @@ export const choqueFlow: Flow = {
           type: "text",
           required: false,
           placeholder: "Ej: +54 9 11 ...",
-          hint: "Dato normalmente intercambiado",
+          hint: "Este dato lo necesita la otra persona involucrada también, asegurate de brindar el tuyo.",
         },
         { id: "sec_danos", label: "EVIDENCIA DE DAÑOS", type: "section" },
         {

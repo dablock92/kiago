@@ -348,7 +348,12 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
               ]}
             >
               <View
-                style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 8,
+                  backgroundColor: "transparent",
+                }}
               >
                 <AlertCircle size={20} color="#F59E0B" />
                 <Text style={styles.missingDataTitle}>
@@ -618,7 +623,6 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
 
       <Modal visible={showCamera} animationType="fade" transparent={false}>
         <CameraView
-          visible={showCamera}
           onClose={() => {
             setShowCamera(false);
             setCameraSide(null);
@@ -676,7 +680,12 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     gap: 12,
   },
-  missingDataTitle: { fontSize: 16, fontWeight: "900", color: "#F59E0B" },
+  missingDataTitle: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#F59E0B",
+    backgroundColor: "transparent",
+  },
   missingDataSub: { fontSize: 13, opacity: 0.6, marginBottom: 4 },
   chipsRow: {
     gap: 10,
