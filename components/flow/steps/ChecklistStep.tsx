@@ -227,9 +227,16 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
                       <Text style={[styles.itemLabel, isDone && styles.itemDone]}>{item?.label}</Text>
                       {item?.required && !isDone && <Text style={styles.asterisk}>*</Text>}
                     </View>
-                    {isDone && (
-                      <Text style={{ fontSize: 12, color: '#10B981', fontWeight: 'bold', marginTop: 2 }}>
-                        {item.id === 'dni_photos' ? '✅ Ambos lados capturados' : (isImage ? '✅ Capturado' : String(value))}
+                    {isDone && item.type !== 'info' && (
+                      <Text 
+                        numberOfLines={1}
+                        style={{ fontSize: 11, color: '#10B981', fontWeight: 'bold', marginTop: 0 }}
+                      >
+                        {item.id === 'dni_photos' 
+                          ? '✅ Ambos lados' 
+                          : isImage 
+                            ? '✅ Foto capturada' 
+                            : value}
                       </Text>
                     )}
                   </View>

@@ -1,6 +1,6 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { StyleSheet, TouchableOpacity } from 'react-native';
 
 import { Text, View } from '@/components/Themed';
@@ -8,7 +8,6 @@ import { FlowRenderer } from '@/components/flow/FlowRenderer';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { flows } from '@/data/flows/choque';
-import { useIncidentStore } from '@/store/useIncidentStore';
 
 export default function FlowScreen() {
   const { id } = useLocalSearchParams();

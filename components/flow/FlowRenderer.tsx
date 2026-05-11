@@ -3,15 +3,15 @@ import { ScrollView, StyleSheet } from 'react-native';
 import Animated, { FadeInRight, FadeOutLeft } from 'react-native-reanimated';
 
 import { Text, View } from '@/components/Themed';
+import { useColorScheme } from '@/components/useColorScheme';
+import Colors from '@/constants/Colors';
 import { Step } from '../../engine/types';
 import { CameraStep } from './steps/CameraStep';
 import { ChecklistStep } from './steps/ChecklistStep';
 import { FormStep } from './steps/FormStep';
+import { InvolvedManagementStep } from './steps/InvolvedManagementStep';
 import { QuestionStep } from './steps/QuestionStep';
 import { SummaryStep } from './steps/SummaryStep';
-import { InvolvedManagementStep } from './steps/InvolvedManagementStep';
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 
 interface Props {
   step: Step;
