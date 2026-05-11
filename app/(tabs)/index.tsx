@@ -18,7 +18,7 @@ import { Dimensions, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { Text, View } from '@/components/Themed';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
-import { useIncidentStore } from '@/src/store/useIncidentStore';
+import { useIncidentStore } from '../../store/useIncidentStore';
 
 const { width } = Dimensions.get('window');
 
@@ -50,8 +50,8 @@ export default function HomeScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.header}>
-        <Text style={styles.greeting}>No pienses.</Text>
-        <Text style={styles.title}>Seguí pasos.</Text>
+        <Text style={styles.greeting}>Relajá. No hay tal crisis.</Text>
+        <Text style={styles.title}>¿Qué pasó?</Text>
       </View>
 
       <ScrollView 

@@ -5,7 +5,7 @@ import { Pressable, ScrollView, StyleSheet } from 'react-native';
 import { Text, View } from '@/components/Themed';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
-import { useConfigStore } from '@/src/store/useConfigStore';
+import { useConfigStore } from '../../store/useConfigStore';
 
 export default function SettingsScreen() {
   const colorScheme = useColorScheme();
