@@ -1,11 +1,11 @@
-import React from 'react';
 import { Link, Tabs } from 'expo-router';
+import { Home, Info, Settings } from 'lucide-react-native';
+import React from 'react';
 import { Pressable } from 'react-native';
-import { Home, Settings, Info } from 'lucide-react-native';
 
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
+import { useColorScheme } from '@/components/useColorScheme';
+import Colors from '@/constants/Colors';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -34,7 +34,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Inicio',
+          title: '',
           tabBarIcon: ({ color }) => <Home size={24} color={color} />,
           headerRight: () => (
             <Link href="/modal" asChild>

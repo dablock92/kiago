@@ -23,6 +23,8 @@ export interface ChecklistItem {
   type: 'text' | 'photo' | 'info' | 'multiple' | 'section' | 'camera';
   action?: string;
   allowPhoto?: boolean;
+  placeholder?: string;
+  required?: boolean;
   fields?: Field[];
   completed?: boolean;
 }

@@ -81,13 +81,48 @@ export const choqueFlow: Flow = {
       subtitle: 'Paso 4: Documentación',
       checklistItems: [
         { id: 'sec_seguro', label: 'DATOS DEL SEGURO', type: 'section' },
-        { id: 'aseguradora', label: 'Aseguradora', type: 'text', allowPhoto: true, required: true },
-        { id: 'poliza_num', label: 'Número de Póliza', type: 'text', allowPhoto: true, required: true },
-        { id: 'vigencia_seguro', label: 'Vigencia del Seguro', type: 'text', allowPhoto: true, required: true },
+        { 
+          id: 'aseguradora', 
+          label: 'Aseguradora', 
+          type: 'text', 
+          allowPhoto: true, 
+          required: true,
+          placeholder: 'Ingrese nombre o foto'
+        },
+        { 
+          id: 'poliza_num', 
+          label: 'Número de Póliza', 
+          type: 'text', 
+          allowPhoto: true, 
+          required: true,
+          placeholder: 'Escribe el número o toma foto'
+        },
+        { 
+          id: 'vigencia_seguro', 
+          label: 'Vigencia del Seguro', 
+          type: 'text', 
+          allowPhoto: true, 
+          required: true,
+          placeholder: 'DD/MM/AAAA o toma foto'
+        },
         
         { id: 'sec_vehiculo', label: 'DATOS DEL VEHÍCULO', type: 'section' },
-        { id: 'dominio_patente', label: 'Dominio / Patente', type: 'text', allowPhoto: true, required: true },
-        { id: 'nombre_titular', label: 'Nombre del Titular', type: 'text', allowPhoto: true, required: true },
+        { 
+          id: 'dominio_patente', 
+          label: 'Dominio / Patente', 
+          type: 'text', 
+          allowPhoto: true, 
+          required: true,
+          placeholder: 'Ej: AF 123 BK o toma foto'
+        },
+        { 
+          id: 'nombre_titular', 
+          label: 'Nombre del Titular', 
+          type: 'text', 
+          allowPhoto: true, 
+          required: true,
+          placeholder: 'Nombre como figura en cédula'
+        },
         
         { id: 'sec_conductor', label: 'DATOS DEL CONDUCTOR', type: 'section' },
         { 
@@ -102,7 +137,13 @@ export const choqueFlow: Flow = {
         },
         { id: 'dni_photos', label: 'Fotos de DNI (Frente y Dorso)', type: 'photo', required: true },
         { id: 'licencia_img', label: 'Licencia de Conducir', type: 'photo', allowPhoto: true, required: true },
-        { id: 'conductor_tel', label: 'Teléfono de contacto', type: 'text', required: false },
+        { 
+          id: 'conductor_tel', 
+          label: 'Teléfono de contacto', 
+          type: 'text', 
+          required: false,
+          placeholder: 'Ej: +54 9 11 ...'
+        },
         
         { id: 'sec_danos', label: 'EVIDENCIA DE DAÑOS', type: 'section' },
         { id: 'fotos_danos', label: 'Fotos del Daño', type: 'camera', required: true }

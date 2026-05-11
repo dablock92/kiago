@@ -1,8 +1,8 @@
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-import { CheckCircle, Home, Share2 } from 'lucide-react-native';
+import { Camera, Car, FileText, Home, Share2, User } from 'lucide-react-native';
 import React from 'react';
-import { ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { Platform, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 
 import { Text, View } from '@/components/Themed';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -13,6 +13,21 @@ import { useIncidentStore } from '../../../store/useIncidentStore';
 interface Props {
   step: Step;
 }
+
+// Mapa de traducciones para las keys internas del store
+const labelMap: Record<string, string> = {
+  rol: 'Tu Rol',
+  seguridad_inmediata: '¿Había heridos?',
+  cantidad_vehiculos: 'Vehículos totales',
+  fotos_escena: 'Fotos de la escena',
+  aseguradora: 'Compañía de Seguro',
+  poliza_num: 'Nº de Póliza',
+  vigencia_seguro: 'Vigencia',
+  dominio_patente: 'Patente / Dominio',
+  nombre_titular: 'Titular del vehículo',
+  conductor_nombre: 'Nombre del Conductor',
+  conductor_tel: 'Teléfono',
+};
 
 export function SummaryStep({ step }: Props) {
   const router = useRouter();
@@ -26,28 +41,84 @@ export function SummaryStep({ step }: Props) {
     router.replace('/');
   };
 
+  const parties = currentIncident?.involvedParties || [];
+  const responses = currentIncident?.responses || {};
+
+  const formatLabel = (key: string) => labelMap[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+
   return (
     <View style={styles.container}>
-      <View style={styles.iconContainer}>
-        <CheckCircle size={80} color="#10B981" />
-      </View>
-      <View style={[styles.summaryCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-        <Text style={styles.summaryTitle}>Datos guardados:</Text>
-        <ScrollView style={styles.responsesScroll}>
-          {Object.entries(currentIncident?.responses || {}).map(([key, value]) => (
-            <View key={key} style={styles.responseRow}>
-              <Text style={styles.responseKey}>{key}:</Text>
-              <Text style={styles.responseValue}>
-                {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-              </Text>
-            </View>
-          ))}
-        </ScrollView>
-      </View>
 
-      <View style={styles.footer}>
+      <ScrollView 
+        style={styles.scroll} 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+      >
+        {/* Sección: Involucrados */}
+        {parties.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <User size={18} color={theme.tint} />
+              <Text style={styles.sectionTitle}>Vehículos Involucrados</Text>
+            </View>
+            {parties.map((party, idx) => (
+              <View key={party.id} style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.partyName}>
+                    {party.useDniPhoto ? 'Identidad por foto' : `${party.name} ${party.surname}`}
+                  </Text>
+                  <Car size={18} color={theme.text} opacity={0.3} />
+                </View>
+                <View style={styles.cardBody}>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Compañía:</Text>
+                    <Text style={styles.infoValue}>{party.insuranceCompany || 'No cargado'}</Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Póliza:</Text>
+                    <Text style={styles.infoValue}>{party.policyNumber || '-'}</Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Patente:</Text>
+                    <Text style={styles.infoValue}>{party.plate || '-'}</Text>
+                  </View>
+                  <View style={styles.photoSummary}>
+                     <Camera size={12} color={theme.text} opacity={0.5} />
+                     <Text style={styles.photoCount}>
+                       {(party.photos.damage?.length || 0) + (party.photos.dniFront ? 2 : 0) + (party.photos.license ? 1 : 0)} fotos de evidencia
+                     </Text>
+                  </View>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Sección: Datos Generales */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <FileText size={18} color={theme.tint} />
+            <Text style={styles.sectionTitle}>Detalles del hecho</Text>
+          </View>
+          <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            {Object.entries(responses).map(([key, value]) => {
+              if (typeof value === 'object') return null;
+              return (
+                <View key={key} style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>{formatLabel(key)}:</Text>
+                  <Text style={styles.infoValue}>{String(value)}</Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
+
+      <View style={[styles.footer, { backgroundColor: theme.background }]}>
         <TouchableOpacity
-          onPress={() => alert('Compartiendo reporte...')}
+          onPress={() => alert('Generando PDF...')}
           style={[styles.outlineButton, { borderColor: theme.border }]}
         >
           <Share2 size={20} color={theme.text} />
@@ -59,7 +130,7 @@ export function SummaryStep({ step }: Props) {
           style={[styles.primaryButton, { backgroundColor: theme.tint }]}
         >
           <Home size={20} color="#fff" />
-          <Text style={styles.primaryButtonText}>Volver al Inicio</Text>
+          <Text style={styles.primaryButtonText}>Finalizar</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -68,58 +139,108 @@ export function SummaryStep({ step }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    alignItems: 'center',
-    gap: 16,
+    flex: 1,
   },
-  iconContainer: {
-    marginVertical: 24,
+  header: {
+    paddingHorizontal: 24,
+    marginTop: 20,
+    marginBottom: 20,
+    alignItems: 'flex-start',
   },
-  title: {
+  mainTitle: {
     fontSize: 32,
     fontWeight: '900',
-    textAlign: 'center',
+    textAlign: 'left',
   },
   subtitle: {
     fontSize: 16,
-    opacity: 0.6,
-    textAlign: 'center',
-  },
-  summaryCard: {
-    width: '100%',
-    padding: 24,
-    borderRadius: 32,
-    borderWidth: 1,
-    marginTop: 24,
-    maxHeight: 300,
-  },
-  summaryTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  responsesScroll: {
-    flexGrow: 0,
-  },
-  responseRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
-  },
-  responseKey: {
-    fontSize: 14,
-    opacity: 0.6,
-    fontWeight: 'bold',
-  },
-  responseValue: {
-    fontSize: 14,
+    opacity: 0.5,
     fontWeight: '600',
   },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 24,
+  },
+  section: {
+    marginBottom: 32,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    opacity: 0.6,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  card: {
+    padding: 20,
+    borderRadius: 24,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#00000005',
+    paddingBottom: 12,
+    marginBottom: 12,
+  },
+  partyName: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  cardBody: {
+    gap: 10,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingVertical: 2,
+  },
+  infoLabel: {
+    fontSize: 14,
+    opacity: 0.5,
+    fontWeight: '600',
+    flex: 1,
+    marginRight: 10,
+  },
+  infoValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    textAlign: 'right',
+    flex: 1.5,
+  },
+  photoSummary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    backgroundColor: '#00000005',
+    padding: 8,
+    borderRadius: 10,
+    alignSelf: 'flex-start',
+  },
+  photoCount: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    opacity: 0.4,
+  },
   footer: {
-    width: '100%',
-    marginTop: 32,
+    padding: 24,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
     gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#00000010',
   },
   primaryButton: {
     padding: 20,

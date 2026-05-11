@@ -168,9 +168,12 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
     }
 
     if (activeItem.id === 'dni_photos' && !valueOverride) {
-      // keep
+      setActiveItem(null);
+      setCameraSide(null);
     } else if (activeItem.id === 'dni_photos' && valueOverride) {
        setCameraSide(null);
+    } else if (activeItem.id === 'fotos_danos' && valueOverride) {
+       // No cerramos el modal, dejamos que el usuario vea la galería y decida si agregar más
     } else {
       setActiveItem(null);
       setIsPhotoMode(false);
@@ -317,14 +320,57 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
               </View>
             ) : (isPhotoMode || activeItem?.type === 'photo' || activeItem?.type === 'camera') ? (
               <View style={styles.photoContainer}>
+                {activeItem?.id === 'fotos_danos' && currentParty?.photos?.damage && currentParty.photos.damage.length > 0 && (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.galleryScroll}>
+                    {currentParty.photos.damage.map((uri, idx) => (
+                      <View key={idx} style={styles.galleryItem}>
+                        <Image source={{ uri }} style={styles.galleryImage} />
+                        <TouchableOpacity 
+                          style={styles.removePhotoBadge}
+                          onPress={() => {
+                            const newDamage = currentParty.photos.damage?.filter((_, i) => i !== idx);
+                            updateInvolvedParty(partyId!, { 
+                              photos: { ...currentParty.photos, damage: newDamage } 
+                            });
+                          }}
+                        >
+                          <X size={14} color="#fff" />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </ScrollView>
+                )}
+
                 <TouchableOpacity 
                   onPress={() => setShowCamera(true)}
-                  style={[styles.photoButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+                  style={[
+                    styles.photoButton, 
+                    { backgroundColor: theme.card, borderColor: theme.border },
+                    activeItem?.id === 'fotos_danos' && { height: 120 }
+                  ]}
                 >
-                  <CameraIcon size={64} color={theme.tint} />
-                  <Text style={styles.photoText}>Tocar para capturar foto</Text>
+                  <CameraIcon size={activeItem?.id === 'fotos_danos' ? 32 : 64} color={theme.tint} />
+                  <Text style={[styles.photoText, activeItem?.id === 'fotos_danos' && { fontSize: 14 }]}>
+                    {activeItem?.id === 'fotos_danos' && (currentParty?.photos?.damage?.length || 0) > 0 
+                      ? 'Agregar otra foto' 
+                      : 'Tocar para capturar foto'}
+                  </Text>
                 </TouchableOpacity>
-                {activeItem?.allowPhoto && (
+
+                {activeItem?.id === 'fotos_danos' && (
+                  <TouchableOpacity 
+                    onPress={() => setActiveItem(null)}
+                    disabled={(currentParty?.photos?.damage?.length || 0) === 0}
+                    style={[
+                      styles.saveButton, 
+                      { backgroundColor: (currentParty?.photos?.damage?.length || 0) > 0 ? theme.tint : theme.border }
+                    ]}
+                  >
+                    <Text style={styles.saveButtonText}>Guardar evidencia</Text>
+                  </TouchableOpacity>
+                )}
+
+                {activeItem?.allowPhoto && activeItem.id !== 'fotos_danos' && (
                   <TouchableOpacity onPress={() => setIsPhotoMode(false)} style={styles.switchButton}>
                     <Text style={{ color: theme.tint }}>Prefiero escribir el dato</Text>
                   </TouchableOpacity>
@@ -357,16 +403,27 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
                     {activeItem.id === 'conductor_nombre' && (
                       <TouchableOpacity 
                         style={[styles.toggleContainer, { backgroundColor: theme.card, borderColor: theme.border }]}
-                        onPress={() => setUseDniPhotoLocal(!useDniPhotoLocal)}
+                        onPress={() => {
+                          const newValue = !useDniPhotoLocal;
+                          setUseDniPhotoLocal(newValue);
+                          if (newValue) {
+                            setFormData(prev => ({ ...prev, nombre: '', apellido: '' }));
+                          }
+                        }}
                         activeOpacity={0.7}
                       >
                          <View style={styles.toggleInfo}>
                             <Text style={styles.toggleTitle}>USAR FOTO DE DNI</Text>
-                            <Text style={styles.toggleSub}>Completa el nombre con las fotos</Text>
+                            <Text style={styles.toggleSub}>Se completará con las fotos capturadas</Text>
                          </View>
                          <Switch 
                             value={useDniPhotoLocal} 
-                            onValueChange={setUseDniPhotoLocal}
+                            onValueChange={(val) => {
+                              setUseDniPhotoLocal(val);
+                              if (val) {
+                                setFormData(prev => ({ ...prev, nombre: '', apellido: '' }));
+                              }
+                            }}
                             trackColor={{ false: theme.border, true: theme.tint }}
                          />
                       </TouchableOpacity>
@@ -376,7 +433,7 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
                   <View style={styles.inputWrapper}>
                     <TextInput
                       style={[styles.input, { backgroundColor: theme.card, borderColor: theme.border, color: theme.text }]}
-                      placeholder="Escribir aquí..."
+                      placeholder={activeItem?.placeholder || "Escribir aquí..."}
                       placeholderTextColor={theme.tabIconDefault}
                       value={formData[activeItem?.id || '']}
                       onChangeText={(text) => setFormData({ [activeItem?.id || '']: text })}
@@ -616,5 +673,33 @@ const styles = StyleSheet.create({
   previewImage: {
     width: '100%',
     height: '100%',
+  },
+  galleryScroll: {
+    maxHeight: 120,
+    marginBottom: 10,
+  },
+  galleryItem: {
+    width: 100,
+    height: 100,
+    borderRadius: 16,
+    marginRight: 12,
+    overflow: 'hidden',
+  },
+  galleryImage: {
+    width: '100%',
+    height: '100%',
+  },
+  removePhotoBadge: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    backgroundColor: '#EF4444',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
   }
 });

@@ -38,15 +38,16 @@ export function InvolvedManagementStep({ step, onNext }: Props) {
   const getPartyStatus = (party: InvolvedParty) => {
     const photoCount = Object.values(party.photos).filter(p => !!p).length;
     
-    // Nueva lógica: si usa foto, el nombre es válido pero necesita las 2 fotos de DNI extras
     const hasBasicInfo = !!(party.name && party.policyNumber);
     const hasRequiredPhotos = party.useDniPhoto 
       ? !!(party.photos.dniFront && party.photos.dniBack)
       : true;
       
-    const isComplete = hasBasicInfo && hasRequiredPhotos && photoCount >= 3; // Seg, Lic, Cédula + DNI si aplica
-    return { photoCount, hasBasicInfo, isComplete };
+    const isComplete = hasBasicInfo && hasRequiredPhotos && (party.photos.damage?.length || 0) > 0;
+    return { photoCount, isComplete };
   };
+
+  const isOnlyTwo = currentIncident?.responses['cantidad_vehiculos'] === 'Solo 2 (yo y otro)';
 
   return (
     <View style={styles.container}>
@@ -78,14 +79,20 @@ export function InvolvedManagementStep({ step, onNext }: Props) {
                     )}
                   </View>
                   <View style={styles.details}>
-                    <Text style={styles.partyTitle}>Involucrado #{index + 1}</Text>
+                    <Text style={styles.partyTitle}>
+                      {isOnlyTwo ? 'Involucrado' : `Involucrado #${index + 1}`}
+                    </Text>
                     <Text style={styles.partyName} numberOfLines={1}>
-                      {party.name ? `${party.name} ${party.surname}` : 'Pendiente de datos'}
+                      {party.useDniPhoto 
+                        ? 'Identidad por foto 📸' 
+                        : (party.name ? `${party.name} ${party.surname}` : 'Pendiente de datos')}
                     </Text>
                     <View style={styles.badgeRow}>
                       <View style={[styles.badge, { backgroundColor: theme.border }]}>
                         <Camera size={12} color={theme.text} opacity={0.6} />
-                        <Text style={styles.badgeText}>{photoCount} fotos</Text>
+                        <Text style={styles.badgeText}>
+                          {(party.photos.damage?.length || 0) + (party.photos.dniFront ? 2 : 0) + (party.photos.license ? 1 : 0)} fotos
+                        </Text>
                       </View>
                       {party.policyNumber && (
                         <View style={[styles.badge, { backgroundColor: '#10B98120' }]}>
@@ -101,15 +108,17 @@ export function InvolvedManagementStep({ step, onNext }: Props) {
             );
           })}
 
-          <TouchableOpacity
-            onPress={handleAddParty}
-            style={[styles.addButton, { borderColor: theme.tint }]}
-          >
-            <Plus size={24} color={theme.tint} />
-            <Text style={[styles.addButtonText, { color: theme.tint }]}>
-              {parties.length === 0 ? 'Cargar primer involucrado' : 'Agregar otro involucrado'}
-            </Text>
-          </TouchableOpacity>
+          {!(isOnlyTwo && parties.length >= 1) && (
+            <TouchableOpacity
+              onPress={handleAddParty}
+              style={[styles.addButton, { borderColor: theme.tint }]}
+            >
+              <Plus size={24} color={theme.tint} />
+              <Text style={[styles.addButtonText, { color: theme.tint }]}>
+                {parties.length === 0 ? 'Cargar involucrado' : 'Agregar otro involucrado'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
 
@@ -131,7 +140,9 @@ export function InvolvedManagementStep({ step, onNext }: Props) {
       >
         <View style={[styles.modalContainer, { backgroundColor: theme.background }]}>
            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Ficha del involucrado: {selectedIndex + 1}</Text>
+              <Text style={styles.modalTitle}>
+                {isOnlyTwo ? 'Ficha del involucrado' : `Ficha del involucrado: ${selectedIndex + 1}`}
+              </Text>
               <TouchableOpacity onPress={() => setSelectedPartyId(null)} style={styles.closeButton}>
                 <X size={24} color={theme.text} />
               </TouchableOpacity>
@@ -144,7 +155,7 @@ export function InvolvedManagementStep({ step, onNext }: Props) {
                   ...step,
                   id: `party-${selectedPartyId}`,
                   text: 'Relevamiento de Datos',
-                  subtitle: `Involucrado #${selectedIndex + 1}`,
+                  subtitle: isOnlyTwo ? 'Datos del involucrado' : `Involucrado #${selectedIndex + 1}`,
                 }} 
                 onNext={() => setSelectedPartyId(null)} 
              />

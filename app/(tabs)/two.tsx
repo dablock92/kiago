@@ -15,7 +15,6 @@ export default function SettingsScreen() {
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.header}>
-        <Text style={styles.title}>Ajustes</Text>
         <Text style={styles.subtitle}>Configurá tu contexto para recibir la mejor asistencia.</Text>
       </View>
 
@@ -90,8 +89,6 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: 24,
-    paddingTop: 40,
-    marginBottom: 8,
   },
   title: {
     fontSize: 32,
