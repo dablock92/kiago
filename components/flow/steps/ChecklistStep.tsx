@@ -193,14 +193,14 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
     <View style={styles.container}>
       <ScrollView style={styles.listContainer} showsVerticalScrollIndicator={false}>
         <View style={styles.list}>
-          {items.map((item) => {
+          {items.map((item, index) => {
             const isUnavailable = currentParty?.unavailableFields?.includes(item.id);
             const isDone = !!responses[item.id] || isUnavailable;
             const value = responses[item.id];
             
             if (item.type === 'section') {
               return (
-                <View key={item.id} style={styles.sectionHeader}>
+                <View key={`${item.id}-${index}`} style={styles.sectionHeader}>
                   <Text style={[styles.sectionLabel, { color: theme.tabIconDefault }]}>{item?.label}</Text>
                   <View style={[styles.sectionLine, { backgroundColor: theme.border }]} />
                 </View>
@@ -209,7 +209,7 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
 
             return (
               <TouchableOpacity
-                key={item.id}
+                key={`${item.id}-${index}`}
                 onPress={() => handleItemPress(item)}
                 style={[
                   styles.item,
