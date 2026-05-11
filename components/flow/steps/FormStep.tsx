@@ -1,12 +1,18 @@
-import * as Haptics from 'expo-haptics';
-import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import * as Haptics from "expo-haptics";
+import React, { useState } from "react";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+} from "react-native";
 
-import { Text, View } from '@/components/Themed';
-import { useColorScheme } from '@/components/useColorScheme';
-import Colors from '@/constants/Colors';
-import { Step } from '../../../engine/types';
-import { useIncidentStore } from '../../../store/useIncidentStore';
+import { Text, View } from "@/components/Themed";
+import { useColorScheme } from "@/components/useColorScheme";
+import Colors from "@/constants/Colors";
+import { Step } from "../../../engine/types";
+import { useIncidentStore } from "../../../store/useIncidentStore";
 
 interface Props {
   step: Step;
@@ -15,7 +21,7 @@ interface Props {
 
 export function FormStep({ step, onNext }: Props) {
   const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme ?? 'light'];
+  const theme = Colors[colorScheme ?? "light"];
   const updateResponse = useIncidentStore((state) => state.updateResponse);
   const [formData, setFormData] = useState<Record<string, string>>({});
 
@@ -26,8 +32,8 @@ export function FormStep({ step, onNext }: Props) {
   };
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
       <View style={styles.form}>
@@ -35,12 +41,21 @@ export function FormStep({ step, onNext }: Props) {
           <View key={field.id} style={styles.field}>
             <Text style={styles.label}>{field.label}</Text>
             <TextInput
-              style={[styles.input, { backgroundColor: theme.card, borderColor: theme.border, color: theme.text }]}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.card,
+                  borderColor: theme.border,
+                  color: theme.text,
+                },
+              ]}
               placeholder={field.placeholder}
               placeholderTextColor={theme.tabIconDefault}
-              keyboardType={field.type === 'phone' ? 'phone-pad' : 'default'}
+              keyboardType={field.type === "phone" ? "phone-pad" : "default"}
               value={formData[field.id]}
-              onChangeText={(text) => setFormData({ ...formData, [field.id]: text })}
+              onChangeText={(text) =>
+                setFormData({ ...formData, [field.id]: text })
+              }
             />
           </View>
         ))}
@@ -48,7 +63,10 @@ export function FormStep({ step, onNext }: Props) {
 
       <TouchableOpacity
         onPress={handleNext}
-        style={[styles.nextButton, { backgroundColor: theme.tint, marginTop: 32 }]}
+        style={[
+          styles.nextButton,
+          { backgroundColor: theme.tint, marginTop: 32 },
+        ]}
       >
         <Text style={styles.nextButtonText}>Continuar</Text>
       </TouchableOpacity>
@@ -63,12 +81,12 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     opacity: 0.6,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
+    fontWeight: "bold",
+    textTransform: "uppercase",
   },
   title: {
     fontSize: 32,
-    fontWeight: '900',
+    fontWeight: "900",
     lineHeight: 38,
   },
   form: {
@@ -80,7 +98,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     opacity: 0.7,
   },
   input: {
@@ -92,11 +110,11 @@ const styles = StyleSheet.create({
   nextButton: {
     padding: 24,
     borderRadius: 24,
-    alignItems: 'center',
+    alignItems: "center",
   },
   nextButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 });

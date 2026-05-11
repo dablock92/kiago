@@ -1,29 +1,35 @@
-import React, { useState } from 'react';
-import { StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions } from 'react-native';
-import { Camera as CameraIcon, X, Check, Plus } from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
+import React, { useState } from "react";
+import {
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Image,
+  Dimensions,
+} from "react-native";
+import { Camera as CameraIcon, X, Check, Plus } from "lucide-react-native";
+import * as Haptics from "expo-haptics";
 
-import { Text, View } from '@/components/Themed';
-import { Step } from '../../../engine/types';
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useIncidentStore } from '../../../store/useIncidentStore';
-import { CameraView } from '../CameraView';
+import { Text, View } from "@/components/Themed";
+import { Step } from "../../../engine/types";
+import Colors from "@/constants/Colors";
+import { useColorScheme } from "@/components/useColorScheme";
+import { useIncidentStore } from "../../../store/useIncidentStore";
+import { CameraView } from "../CameraView";
 
 interface Props {
   step: Step;
   onNext: (nextId?: string) => void;
 }
 
-const { width } = Dimensions.get('window');
+const { width } = Dimensions.get("window");
 const COLUMN_WIDTH = (width - 48 - 12) / 2;
 
 export function CameraStep({ step, onNext }: Props) {
   const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme ?? 'light'];
+  const theme = Colors[colorScheme ?? "light"];
   const updateResponse = useIncidentStore((state) => state.updateResponse);
   const currentIncident = useIncidentStore((state) => state.currentIncident);
-  
+
   const [showCamera, setShowCamera] = useState(false);
 
   // Get current photos from store
@@ -41,7 +47,12 @@ export function CameraStep({ step, onNext }: Props) {
   };
 
   if (showCamera) {
-    return <CameraView onCapture={handleCapture} onClose={() => setShowCamera(false)} />;
+    return (
+      <CameraView
+        onCapture={handleCapture}
+        onClose={() => setShowCamera(false)}
+      />
+    );
   }
 
   return (
@@ -51,8 +62,8 @@ export function CameraStep({ step, onNext }: Props) {
           {photos.map((uri, i) => (
             <View key={i} style={styles.photoContainer}>
               <Image source={{ uri }} style={styles.photo} />
-              <TouchableOpacity 
-                onPress={() => removePhoto(i)} 
+              <TouchableOpacity
+                onPress={() => removePhoto(i)}
                 style={styles.removeButton}
               >
                 <X size={16} color="#fff" />
@@ -60,9 +71,12 @@ export function CameraStep({ step, onNext }: Props) {
             </View>
           ))}
 
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => setShowCamera(true)}
-            style={[styles.addButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+            style={[
+              styles.addButton,
+              { backgroundColor: theme.card, borderColor: theme.border },
+            ]}
           >
             <Plus size={32} color={theme.tint} />
             <Text style={styles.addLabel}>Agregar Foto</Text>
@@ -75,7 +89,7 @@ export function CameraStep({ step, onNext }: Props) {
         disabled={photos.length === 0}
         style={[
           styles.nextButton,
-          { backgroundColor: photos.length > 0 ? theme.tint : theme.border }
+          { backgroundColor: photos.length > 0 ? theme.tint : theme.border },
         ]}
       >
         <Check size={24} color="#fff" />
@@ -93,8 +107,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 12,
     paddingBottom: 20,
   },
@@ -102,17 +116,17 @@ const styles = StyleSheet.create({
     width: COLUMN_WIDTH,
     height: COLUMN_WIDTH,
     borderRadius: 20,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   photo: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   removeButton: {
-    position: 'absolute',
+    position: "absolute",
     top: 8,
     right: 8,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: "rgba(0,0,0,0.5)",
     borderRadius: 12,
     padding: 4,
   },
@@ -121,28 +135,28 @@ const styles = StyleSheet.create({
     height: COLUMN_WIDTH,
     borderRadius: 20,
     borderWidth: 2,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderStyle: "dashed",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 8,
   },
   addLabel: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     opacity: 0.5,
   },
   nextButton: {
     padding: 24,
     borderRadius: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 12,
     marginTop: 20,
   },
   nextButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 });

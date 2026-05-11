@@ -1,14 +1,32 @@
-import React, { useState } from 'react';
-import { StyleSheet, TouchableOpacity, ScrollView, Modal, Platform } from 'react-native';
-import { Plus, User, ChevronRight, CheckCircle2, Circle, X, Camera, FileText } from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
+import React, { useState } from "react";
+import {
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Modal,
+  Platform,
+} from "react-native";
+import {
+  Plus,
+  User,
+  ChevronRight,
+  CheckCircle2,
+  Circle,
+  X,
+  Camera,
+  FileText,
+} from "lucide-react-native";
+import * as Haptics from "expo-haptics";
 
-import { Text, View } from '@/components/Themed';
-import { Step } from '../../../engine/types';
-import { InvolvedParty, useIncidentStore } from '../../../store/useIncidentStore';
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { ChecklistStep } from './ChecklistStep';
+import { Text, View } from "@/components/Themed";
+import { Step } from "../../../engine/types";
+import {
+  InvolvedParty,
+  useIncidentStore,
+} from "../../../store/useIncidentStore";
+import Colors from "@/constants/Colors";
+import { useColorScheme } from "@/components/useColorScheme";
+import { ChecklistStep } from "./ChecklistStep";
 
 interface Props {
   step: Step;
@@ -17,12 +35,12 @@ interface Props {
 
 export function InvolvedManagementStep({ step, onNext }: Props) {
   const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme ?? 'light'];
+  const theme = Colors[colorScheme ?? "light"];
   const { currentIncident, addInvolvedParty } = useIncidentStore();
   const [selectedPartyId, setSelectedPartyId] = useState<string | null>(null);
 
   const parties = currentIncident?.involvedParties || [];
-  const selectedIndex = parties.findIndex(p => p.id === selectedPartyId);
+  const selectedIndex = parties.findIndex((p) => p.id === selectedPartyId);
 
   const handleAddParty = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -36,18 +54,22 @@ export function InvolvedManagementStep({ step, onNext }: Props) {
   };
 
   const getPartyStatus = (party: InvolvedParty) => {
-    const photoCount = Object.values(party.photos).filter(p => !!p).length;
-    
+    const photoCount = Object.values(party.photos).filter((p) => !!p).length;
+
     const hasBasicInfo = !!(party.name && party.policyNumber);
-    const hasRequiredPhotos = party.useDniPhoto 
+    const hasRequiredPhotos = party.useDniPhoto
       ? !!(party.photos.dniFront && party.photos.dniBack)
       : true;
-      
-    const isComplete = hasBasicInfo && hasRequiredPhotos && (party.photos.damage?.length || 0) > 0;
+
+    const isComplete =
+      hasBasicInfo &&
+      hasRequiredPhotos &&
+      (party.photos.damage?.length || 0) > 0;
     return { photoCount, isComplete };
   };
 
-  const isOnlyTwo = currentIncident?.responses['cantidad_vehiculos'] === 'Solo 2 (yo y otro)';
+  const isOnlyTwo =
+    currentIncident?.responses["cantidad_vehiculos"] === "Solo 2 (yo y otro)";
 
   return (
     <View style={styles.container}>
@@ -60,18 +82,24 @@ export function InvolvedManagementStep({ step, onNext }: Props) {
                 key={party.id}
                 onPress={() => handleSelectParty(party.id)}
                 style={[
-                  styles.partyCard, 
-                  { 
-                    backgroundColor: 'transparent', 
-                    borderColor: isComplete ? '#10B981' : theme.border 
-                  }
+                  styles.partyCard,
+                  {
+                    backgroundColor: "transparent",
+                    borderColor: isComplete ? "#10B981" : theme.border,
+                  },
                 ]}
               >
                 <View style={styles.partyInfo}>
-                  <View style={[
-                    styles.avatar, 
-                    { backgroundColor: isComplete ? '#10B98120' : theme.tint + '20' }
-                  ]}>
+                  <View
+                    style={[
+                      styles.avatar,
+                      {
+                        backgroundColor: isComplete
+                          ? "#10B98120"
+                          : theme.tint + "20",
+                      },
+                    ]}
+                  >
                     {isComplete ? (
                       <CheckCircle2 size={24} color="#10B981" />
                     ) : (
@@ -80,24 +108,43 @@ export function InvolvedManagementStep({ step, onNext }: Props) {
                   </View>
                   <View style={styles.details}>
                     <Text style={styles.partyTitle}>
-                      {isOnlyTwo ? 'Involucrado' : `Involucrado #${index + 1}`}
+                      {isOnlyTwo ? "Involucrado" : `Involucrado #${index + 1}`}
                     </Text>
                     <Text style={styles.partyName} numberOfLines={1}>
-                      {party.useDniPhoto 
-                        ? 'Identidad por foto 📸' 
-                        : (party.name ? `${party.name} ${party.surname}` : 'Pendiente de datos')}
+                      {party.useDniPhoto
+                        ? "Identidad por foto 📸"
+                        : party.name
+                          ? `${party.name} ${party.surname}`
+                          : "Pendiente de datos"}
                     </Text>
                     <View style={styles.badgeRow}>
-                      <View style={[styles.badge, { backgroundColor: theme.border }]}>
+                      <View
+                        style={[
+                          styles.badge,
+                          { backgroundColor: theme.border },
+                        ]}
+                      >
                         <Camera size={12} color={theme.text} opacity={0.6} />
                         <Text style={styles.badgeText}>
-                          {(party.photos.damage?.length || 0) + (party.photos.dniFront ? 2 : 0) + (party.photos.license ? 1 : 0)} fotos
+                          {(party.photos.damage?.length || 0) +
+                            (party.photos.dniFront ? 2 : 0) +
+                            (party.photos.license ? 1 : 0)}{" "}
+                          fotos
                         </Text>
                       </View>
                       {party.policyNumber && (
-                        <View style={[styles.badge, { backgroundColor: '#10B98120' }]}>
+                        <View
+                          style={[
+                            styles.badge,
+                            { backgroundColor: "#10B98120" },
+                          ]}
+                        >
                           <FileText size={12} color="#10B981" />
-                          <Text style={[styles.badgeText, { color: '#10B981' }]}>Póliza cargada</Text>
+                          <Text
+                            style={[styles.badgeText, { color: "#10B981" }]}
+                          >
+                            Póliza cargada
+                          </Text>
                         </View>
                       )}
                     </View>
@@ -115,7 +162,9 @@ export function InvolvedManagementStep({ step, onNext }: Props) {
             >
               <Plus size={24} color={theme.tint} />
               <Text style={[styles.addButtonText, { color: theme.tint }]}>
-                {parties.length === 0 ? 'Cargar involucrado' : 'Agregar otro involucrado'}
+                {parties.length === 0
+                  ? "Cargar involucrado"
+                  : "Agregar otro involucrado"}
               </Text>
             </TouchableOpacity>
           )}
@@ -127,7 +176,7 @@ export function InvolvedManagementStep({ step, onNext }: Props) {
         disabled={parties.length === 0}
         style={[
           styles.nextButton,
-          { backgroundColor: parties.length > 0 ? theme.tint : theme.border }
+          { backgroundColor: parties.length > 0 ? theme.tint : theme.border },
         ]}
       >
         <Text style={styles.nextButtonText}>Finalizar Intercambio</Text>
@@ -138,28 +187,37 @@ export function InvolvedManagementStep({ step, onNext }: Props) {
         animationType="slide"
         presentationStyle="pageSheet"
       >
-        <View style={[styles.modalContainer, { backgroundColor: theme.background }]}>
-           <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {isOnlyTwo ? 'Ficha del involucrado' : `Ficha del involucrado: ${selectedIndex + 1}`}
-              </Text>
-              <TouchableOpacity onPress={() => setSelectedPartyId(null)} style={styles.closeButton}>
-                <X size={24} color={theme.text} />
-              </TouchableOpacity>
-           </View>
-           
-           <View style={styles.modalBody}>
-             <ChecklistStep 
-                partyId={selectedPartyId || undefined}
-                step={{
-                  ...step,
-                  id: `party-${selectedPartyId}`,
-                  text: 'Relevamiento de Datos',
-                  subtitle: isOnlyTwo ? 'Datos del involucrado' : `Involucrado #${selectedIndex + 1}`,
-                }} 
-                onNext={() => setSelectedPartyId(null)} 
-             />
-           </View>
+        <View
+          style={[styles.modalContainer, { backgroundColor: theme.background }]}
+        >
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>
+              {isOnlyTwo
+                ? "Ficha del involucrado"
+                : `Ficha del involucrado: ${selectedIndex + 1}`}
+            </Text>
+            <TouchableOpacity
+              onPress={() => setSelectedPartyId(null)}
+              style={styles.closeButton}
+            >
+              <X size={24} color={theme.text} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.modalBody}>
+            <ChecklistStep
+              partyId={selectedPartyId || undefined}
+              step={{
+                ...step,
+                id: `party-${selectedPartyId}`,
+                text: "Relevamiento de Datos",
+                subtitle: isOnlyTwo
+                  ? "Datos del involucrado"
+                  : `Involucrado #${selectedIndex + 1}`,
+              }}
+              onNext={() => setSelectedPartyId(null)}
+            />
+          </View>
         </View>
       </Modal>
     </View>
@@ -178,17 +236,17 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   partyCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     padding: 16,
     borderRadius: 24,
     borderWidth: 2,
     minHeight: 100,
   },
   partyInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 16,
     flex: 1,
   },
@@ -196,8 +254,8 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   details: {
     flex: 1,
@@ -206,21 +264,21 @@ const styles = StyleSheet.create({
   partyTitle: {
     fontSize: 11,
     opacity: 0.5,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
+    fontWeight: "bold",
+    textTransform: "uppercase",
   },
   partyName: {
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: "900",
   },
   badgeRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
     marginTop: 4,
   },
   badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -228,49 +286,49 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 11,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     padding: 24,
     borderRadius: 24,
     borderWidth: 2,
-    borderStyle: 'dashed',
+    borderStyle: "dashed",
     gap: 12,
     marginTop: 8,
   },
   addButtonText: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   nextButton: {
     padding: 24,
     borderRadius: 24,
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 20,
-    marginBottom: Platform.OS === 'ios' ? 0 : 20,
+    marginBottom: Platform.OS === "ios" ? 0 : 20,
   },
   nextButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   modalContainer: {
     flex: 1,
   },
   modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: 24,
     borderBottomWidth: 1,
-    borderBottomColor: '#00000010',
+    borderBottomColor: "#00000010",
   },
   modalTitle: {
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: "900",
   },
   modalBody: {
     flex: 1,
@@ -278,5 +336,5 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     padding: 8,
-  }
+  },
 });

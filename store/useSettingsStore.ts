@@ -1,6 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
 
 interface UserSettings {
   userName: string;
@@ -17,24 +17,24 @@ interface SettingsState {
 }
 
 const initialSettings: UserSettings = {
-  userName: '',
-  userEmail: '',
-  insuranceName: '',
-  insuranceEmail: '',
-  userPlate: '',
-  userPolicy: '',
+  userName: "",
+  userEmail: "",
+  insuranceName: "",
+  insuranceEmail: "",
+  userPlate: "",
+  userPolicy: "",
 };
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
       settings: initialSettings,
-      updateSettings: (newSettings) => 
+      updateSettings: (newSettings) =>
         set((state) => ({ settings: { ...state.settings, ...newSettings } })),
     }),
     {
-      name: 'kiago-settings',
+      name: "kiago-settings",
       storage: createJSONStorage(() => AsyncStorage),
-    }
-  )
+    },
+  ),
 );
