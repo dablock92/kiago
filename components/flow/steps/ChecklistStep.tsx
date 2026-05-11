@@ -116,7 +116,8 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
           : undefined,
         conductor_tel: currentParty.phone,
         dni_photos: currentParty.photos?.dniFront || currentParty.dni,
-        licencia_img: currentParty.photos?.licenseFront || currentParty.photos?.licenseBack,
+        licencia_img:
+          currentParty.photos?.licenseFront || currentParty.photos?.licenseBack,
         fotos_danos: currentParty.photos?.damage,
       } as Record<string, any>;
     }

@@ -1,5 +1,5 @@
 import { Link, Tabs } from "expo-router";
-import { Home, Info, Settings } from "lucide-react-native";
+import { History, Home, Info, Settings } from "lucide-react-native";
 import React from "react";
 import { Pressable } from "react-native";
 
@@ -35,21 +35,15 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "",
+          title: "Inicio",
           tabBarIcon: ({ color }) => <Home size={24} color={color} />,
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable>
-                {({ pressed }) => (
-                  <Info
-                    size={24}
-                    color={theme.text}
-                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
+        }}
+      />
+      <Tabs.Screen
+        name="history"
+        options={{
+          title: "Historial",
+          tabBarIcon: ({ color }) => <History size={24} color={color} />,
         }}
       />
       <Tabs.Screen

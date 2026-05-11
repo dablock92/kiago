@@ -57,7 +57,7 @@ export const getAllIncidents = async (): Promise<Incident[]> => {
   try {
     const db = await getDb();
     const allRows = await db.getAllAsync<{ data: string }>(
-      "SELECT data FROM incidents ORDER BY createdAt DESC",
+      "SELECT data FROM incidents ORDER BY createdAt DESC LIMIT 10",
     );
 
     return allRows.map((row) => JSON.parse(row.data));
