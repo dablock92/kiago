@@ -31,10 +31,6 @@ export function SummaryStep({ step }: Props) {
       <View style={styles.iconContainer}>
         <CheckCircle size={80} color="#10B981" />
       </View>
-      
-      <Text style={styles.title}>{step.text}</Text>
-      <Text style={styles.subtitle}>{step.subtitle}</Text>
-
       <View style={[styles.summaryCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
         <Text style={styles.summaryTitle}>Datos guardados:</Text>
         <ScrollView style={styles.responsesScroll}>

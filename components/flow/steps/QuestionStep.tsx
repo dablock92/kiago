@@ -1,11 +1,11 @@
+import * as Haptics from 'expo-haptics';
 import React from 'react';
 import { StyleSheet, TouchableOpacity } from 'react-native';
-import * as Haptics from 'expo-haptics';
 
 import { Text, View } from '@/components/Themed';
-import { Step } from '../../../engine/types';
-import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
+import Colors from '@/constants/Colors';
+import { Step } from '../../../engine/types';
 import { useIncidentStore } from '../../../store/useIncidentStore';
 
 interface Props {
@@ -32,9 +32,6 @@ export function QuestionStep({ step, onNext }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.subtitle}>{step.subtitle}</Text>
-      <Text style={styles.title}>{step.text}</Text>
-
       <View style={styles.options}>
         {step.options?.map((option, index) => (
           <TouchableOpacity

@@ -18,126 +18,104 @@ export const choqueFlow: Flow = {
     {
       id: 'espectador_guia',
       type: 'checklist',
-      text: 'Tu rol como espectador',
-      subtitle: 'Ayudá sin ponerte en riesgo.',
+      text: 'Guía para testigos',
+      subtitle: 'Asistencia técnica',
       checklistItems: [
-        'Señalizá la zona para evitar más choques',
-        'Llamá al 107 (Emergencias)',
-        'No muevas a los heridos',
-        'Ofrecete como testigo si es necesario'
+        'Asegurar zona del accidente',
+        'Llamar al 911 si hay heridos',
+        'Tomar fotos generales de lejos',
+        'No mover los vehículos'
       ],
-      nextStep: 'resumen_final'
+      nextStep: 'resumen'
     },
     {
       id: 'seguridad_inmediata',
-      type: 'checklist',
-      text: 'Seguridad Inmediata',
-      subtitle: 'Paso 1: Ley 24.449',
-      checklistItems: [
-        'Detenerse por completo (es obligatorio)',
-        'Encender balizas',
-        'Colocar triángulos (a 30m y 150m en ruta)',
-        'Verificar si hay heridos'
-      ],
-      nextStep: 'hay_heridos'
-    },
-    {
-      id: 'hay_heridos',
       type: 'question',
       text: '¿Hay personas heridas?',
+      subtitle: 'Paso 1: Triaje',
       options: [
-        { label: 'Sí, llamar al 107', action: 'CALL_107', style: 'danger' },
-        { label: 'No hay heridos', nextStep: 'intercambio_doc' },
-        { label: 'No estoy seguro', action: 'CALL_107', style: 'default' }
+        { label: 'Sí, hay heridos', nextStep: 'heridos_emergencia' },
+        { label: 'No, solo daños materiales', nextStep: 'cantidad_vehiculos' }
       ]
     },
     {
-      id: 'intercambio_doc',
+      id: 'heridos_emergencia',
       type: 'checklist',
-      text: 'Intercambio de Documentos',
-      subtitle: 'Pedí y brindá esta info (sacá fotos)',
+      text: 'Protocolo de Emergencia',
+      subtitle: 'Prioridad máxima',
       checklistItems: [
-        'Seguro (Compañía y Póliza)',
-        'Licencia de conducir (Frente y Dorso)',
-        'Cédula Verde o Azul',
-        'DNI y Teléfono de contacto'
+        { id: 'sec_antes', label: 'ANTES DE LLAMAR (Rápido)', type: 'section' },
+        { id: 'balizas', label: 'Poner balizas y chaleco', type: 'info' },
+        { id: 'ubicacion', label: 'Verificar calle y altura exacta', type: 'info' },
+        
+        { id: 'sec_inmediata', label: 'ACCIÓN INMEDIATA', type: 'section' },
+        { id: 'llamado_911', label: 'Llamar al 911 / 107', type: 'info' },
+        
+        { id: 'sec_mientras', label: 'MIENTRAS LLEGA LA AYUDA', type: 'section' },
+        { id: 'no_mover', label: 'No mover a los heridos', type: 'info' },
+        { id: 'gravedad', label: 'Evaluar signos vitales (consciencia/pulso)', type: 'info' }
       ],
-      nextStep: 'registro_evidencia'
+      nextStep: 'cantidad_vehiculos'
     },
     {
-      id: 'registro_evidencia',
-      type: 'camera',
-      text: 'Fotos de la escena',
-      subtitle: 'Antes de mover los autos, capturá:',
-      checklistItems: [
-        'Posición de los vehículos',
-        'Daños de ambos autos',
-        'Patente del otro vehículo',
-        'Fotos de la calle / calzada'
-      ],
-      nextStep: 'datos_otro'
-    },
-    {
-      id: 'datos_otro',
-      type: 'form',
-      text: 'Datos del tercero',
-      fields: [
-        { id: 'nombre', label: 'Nombre del conductor', type: 'text' },
-        { id: 'patente', label: 'Patente del otro auto', type: 'text' },
-        { id: 'seguro', label: 'Compañía de seguro', type: 'text' },
-        { id: 'telefono', label: 'Teléfono de contacto', type: 'phone' }
-      ],
-      nextStep: 'situaciones_especiales'
-    },
-    {
-      id: 'situaciones_especiales',
+      id: 'cantidad_vehiculos',
       type: 'question',
-      text: '¿Sucedió algo de esto?',
+      text: '¿Cuántos vehículos hay involucrados?',
+      subtitle: 'Paso 2: Magnitud',
       options: [
-        { label: 'El otro conductor se fugó', nextStep: 'fuga_info' },
-        { label: 'No tiene seguro', nextStep: 'no_seguro_info' },
-        { label: 'Todo normal', nextStep: 'tramites_legales' }
+        { label: 'Solo 2 (yo y otro)', nextStep: 'fotos_escena' },
+        { label: '3 o más', nextStep: 'fotos_escena' }
       ]
     },
     {
-      id: 'fuga_info',
-      type: 'checklist',
-      text: 'En caso de fuga',
-      checklistItems: [
-        'Anotá la patente si llegaste a verla',
-        'Buscá cámaras en la zona',
-        'Buscá testigos (pedí su teléfono)'
-      ],
-      nextStep: 'tramites_legales'
+      id: 'fotos_escena',
+      type: 'camera',
+      text: 'Fotos de la Escena',
+      subtitle: 'Paso 3: Evidencia',
+      nextStep: 'intercambio_datos'
     },
     {
-      id: 'no_seguro_info',
-      type: 'checklist',
-      text: 'Sin seguro',
+      id: 'intercambio_datos',
+      type: 'involved_management',
+      text: 'Intercambio de Datos',
+      subtitle: 'Paso 4: Documentación',
       checklistItems: [
-        'Tomá sus datos personales igual',
-        'El reclamo deberá ser vía civil',
-        'Consultá con un abogado'
+        { id: 'sec_seguro', label: 'DATOS DEL SEGURO', type: 'section' },
+        { id: 'aseguradora', label: 'Aseguradora', type: 'text', allowPhoto: true, required: true },
+        { id: 'poliza_num', label: 'Número de Póliza', type: 'text', allowPhoto: true, required: true },
+        { id: 'vigencia_seguro', label: 'Vigencia del Seguro', type: 'text', allowPhoto: true, required: true },
+        
+        { id: 'sec_vehiculo', label: 'DATOS DEL VEHÍCULO', type: 'section' },
+        { id: 'dominio_patente', label: 'Dominio / Patente', type: 'text', allowPhoto: true, required: true },
+        { id: 'nombre_titular', label: 'Nombre del Titular', type: 'text', allowPhoto: true, required: true },
+        
+        { id: 'sec_conductor', label: 'DATOS DEL CONDUCTOR', type: 'section' },
+        { 
+          id: 'conductor_nombre', 
+          label: 'Conductor (Nombre y Apellido)', 
+          type: 'text',
+          required: true,
+          fields: [
+            { id: 'nombre', label: 'Nombre/s', type: 'text', placeholder: 'Ej: Juan' },
+            { id: 'apellido', label: 'Apellido/s', type: 'text', placeholder: 'Ej: Pérez' }
+          ]
+        },
+        { id: 'dni_photos', label: 'Fotos de DNI (Frente y Dorso)', type: 'photo', required: true },
+        { id: 'licencia_img', label: 'Licencia de Conducir', type: 'photo', allowPhoto: true, required: true },
+        { id: 'conductor_tel', label: 'Teléfono de contacto', type: 'text', required: false },
+        
+        { id: 'sec_danos', label: 'EVIDENCIA DE DAÑOS', type: 'section' },
+        { id: 'fotos_danos', label: 'Fotos del Daño', type: 'camera', required: true }
       ],
-      nextStep: 'tramites_legales'
+      nextStep: 'resumen'
     },
     {
-      id: 'tramites_legales',
-      type: 'checklist',
-      text: 'Próximos pasos legales',
-      subtitle: 'Paso 5: Trámites',
-      checklistItems: [
-        'Denuncia administrativa: Tenés 72hs hábiles para avisar a TU seguro',
-        'Denuncia policial: Solo si hay heridos o robo',
-        'Guardar fotos y datos recolectados'
-      ],
-      nextStep: 'resumen_final'
-    },
-    {
-      id: 'resumen_final',
+      id: 'resumen',
       type: 'summary',
-      text: 'Reporte Finalizado',
-      subtitle: 'Toda la información ha sido guardada localmente.'
+      text: 'Reporte Final',
+      subtitle: 'Paso 5: Finalización'
     }
   ]
 };
+
+export const flows = [choqueFlow];

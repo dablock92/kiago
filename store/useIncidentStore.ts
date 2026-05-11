@@ -1,71 +1,102 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
-import { Incident } from '../engine/types';
+
+export interface InvolvedParty {
+  id: string;
+  name?: string;
+  surname?: string;
+  phone?: string;
+  dni?: string;
+  // Campos del Vehículo y Seguro
+  plate?: string;
+  insuranceCompany?: string;
+  policyNumber?: string;
+  ownerName?: string;
+  insuranceValidity?: string;
+  
+  photos: {
+    insurance?: string;
+    license?: string;
+    car?: string;
+    dniFront?: string;
+    dniBack?: string;
+    damage?: string[]; // Array para múltiples fotos del daño
+  };
+  useDniPhoto?: boolean;
+}
+
+interface Incident {
+  id: string;
+  type: string;
+  responses: Record<string, any>;
+  involvedParties: InvolvedParty[];
+  createdAt: string;
+}
 
 interface IncidentState {
   currentIncident: Incident | null;
-  history: Incident[];
-  startIncident: (flowId: string) => void;
-  updateResponse: (stepId: string, value: any) => void;
+  startIncident: (type: string) => void;
+  updateResponse: (stepId: string, response: any) => void;
+  addInvolvedParty: () => string;
+  updateInvolvedParty: (partyId: string, update: Partial<InvolvedParty>) => void;
+  removeInvolvedParty: (partyId: string) => void;
   completeIncident: () => void;
-  clearCurrent: () => void;
 }
 
-export const useIncidentStore = create<IncidentState>()(
-  persist(
-    (set) => ({
-      currentIncident: null,
-      history: [],
+export const useIncidentStore = create<IncidentState>((set) => ({
+  currentIncident: null,
+  
+  completeIncident: () => set({ currentIncident: null }),
 
-      startIncident: (flowId) => {
-        const newIncident: Incident = {
-          id: Math.random().toString(36).substring(7),
-          flowId,
-          status: 'in_progress',
-          responses: {},
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        };
-        set({ currentIncident: newIncident });
-      },
-
-      updateResponse: (stepId, value) => {
-        set((state) => {
-          if (!state.currentIncident) return state;
-          return {
-            currentIncident: {
-              ...state.currentIncident,
-              responses: {
-                ...state.currentIncident.responses,
-                [stepId]: value,
-              },
-              updatedAt: Date.now(),
-            },
-          };
-        });
-      },
-
-      completeIncident: () => {
-        set((state) => {
-          if (!state.currentIncident) return state;
-          const completedIncident: Incident = {
-            ...state.currentIncident,
-            status: 'completed',
-            updatedAt: Date.now(),
-          };
-          return {
-            currentIncident: null,
-            history: [completedIncident, ...state.history],
-          };
-        });
-      },
-
-      clearCurrent: () => set({ currentIncident: null }),
-    }),
-    {
-      name: 'incident-storage',
-      storage: createJSONStorage(() => AsyncStorage),
+  startIncident: (type) => set({
+    currentIncident: {
+      id: Math.random().toString(36).substr(2, 9),
+      type,
+      responses: {},
+      involvedParties: [],
+      createdAt: new Date().toISOString(),
     }
-  )
-);
+  }),
+
+  updateResponse: (stepId, response) => set((state) => ({
+    currentIncident: state.currentIncident ? {
+      ...state.currentIncident,
+      responses: {
+        ...state.currentIncident.responses,
+        [stepId]: response,
+      },
+    } : null,
+  })),
+
+  addInvolvedParty: () => {
+    const id = Math.random().toString(36).substr(2, 9);
+    set((state) => ({
+      currentIncident: state.currentIncident ? {
+        ...state.currentIncident,
+        involvedParties: [
+          ...state.currentIncident.involvedParties,
+          { 
+            id, 
+            photos: { damage: [] } 
+          },
+        ],
+      } : null,
+    }));
+    return id;
+  },
+
+  updateInvolvedParty: (partyId, update) => set((state) => ({
+    currentIncident: state.currentIncident ? {
+      ...state.currentIncident,
+      involvedParties: state.currentIncident.involvedParties.map((p) =>
+        p.id === partyId ? { ...p, ...update } : p
+      ),
+    } : null,
+  })),
+
+  removeInvolvedParty: (partyId) => set((state) => ({
+    currentIncident: state.currentIncident ? {
+      ...state.currentIncident,
+      involvedParties: state.currentIncident.involvedParties.filter((p) => p.id !== partyId),
+    } : null,
+  })),
+}));

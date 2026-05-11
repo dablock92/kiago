@@ -7,13 +7,24 @@ export type StepType =
   | 'summary' 
   | 'emergency' 
   | 'action' 
-  | 'location';
+  | 'location'
+  | 'involved_management';
 
 export interface Option {
   label: string;
   nextStep?: string;
   action?: string;
   style?: 'default' | 'danger' | 'success';
+}
+
+export interface ChecklistItem {
+  id: string;
+  label: string;
+  type: 'text' | 'photo' | 'info' | 'multiple' | 'section' | 'camera';
+  action?: string;
+  allowPhoto?: boolean;
+  fields?: Field[];
+  completed?: boolean;
 }
 
 export interface Step {
@@ -24,7 +35,7 @@ export interface Step {
   options?: Option[];
   required?: boolean;
   fields?: Field[];
-  checklistItems?: string[];
+  checklistItems?: (string | ChecklistItem)[]; // Support both simple and interactive
   nextStep?: string;
 }
 

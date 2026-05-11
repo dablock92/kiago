@@ -30,9 +30,6 @@ export function FormStep({ step, onNext }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <Text style={styles.subtitle}>{step.subtitle}</Text>
-      <Text style={styles.title}>{step.text}</Text>
-
       <View style={styles.form}>
         {step.fields?.map((field) => (
           <View key={field.id} style={styles.field}>

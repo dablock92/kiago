@@ -1,64 +1,85 @@
-import * as Haptics from 'expo-haptics';
-import { Camera as CameraIcon } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { StyleSheet, TouchableOpacity } from 'react-native';
+import { StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions } from 'react-native';
+import { Camera as CameraIcon, X, Check, Plus } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 
 import { Text, View } from '@/components/Themed';
-import { useColorScheme } from '@/components/useColorScheme';
-import Colors from '@/constants/Colors';
 import { Step } from '../../../engine/types';
+import Colors from '@/constants/Colors';
+import { useColorScheme } from '@/components/useColorScheme';
+import { useIncidentStore } from '../../../store/useIncidentStore';
+import { CameraView } from '../CameraView';
 
 interface Props {
   step: Step;
   onNext: (nextId?: string) => void;
 }
 
+const { width } = Dimensions.get('window');
+const COLUMN_WIDTH = (width - 48 - 12) / 2;
+
 export function CameraStep({ step, onNext }: Props) {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
-  const [photos, setPhotos] = useState<string[]>([]);
+  const updateResponse = useIncidentStore((state) => state.updateResponse);
+  const currentIncident = useIncidentStore((state) => state.currentIncident);
+  
+  const [showCamera, setShowCamera] = useState(false);
 
-  const handleTakePhoto = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    // Mock photo taking
-    setPhotos([...photos, 'placeholder']);
+  // Get current photos from store
+  const photos: string[] = currentIncident?.responses[step.id] || [];
+
+  const handleCapture = (uri: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    updateResponse(step.id, [...photos, uri]);
+    setShowCamera(false);
   };
+
+  const removePhoto = (index: number) => {
+    const newPhotos = photos.filter((_, i) => i !== index);
+    updateResponse(step.id, newPhotos);
+  };
+
+  if (showCamera) {
+    return <CameraView onCapture={handleCapture} onClose={() => setShowCamera(false)} />;
+  }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.subtitle}>{step.subtitle}</Text>
-      <Text style={styles.title}>{step.text}</Text>
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.scroll}>
+        <View style={styles.grid}>
+          {photos.map((uri, i) => (
+            <View key={i} style={styles.photoContainer}>
+              <Image source={{ uri }} style={styles.photo} />
+              <TouchableOpacity 
+                onPress={() => removePhoto(i)} 
+                style={styles.removeButton}
+              >
+                <X size={16} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          ))}
 
-      <View style={styles.cameraPlaceholder}>
-        {photos.length > 0 ? (
-          <View style={styles.photoGrid}>
-             {photos.map((_, i) => (
-               <View key={i} style={[styles.photoThumb, { backgroundColor: theme.border }]} />
-             ))}
-          </View>
-        ) : (
           <TouchableOpacity 
-            onPress={handleTakePhoto}
-            style={[styles.cameraButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+            onPress={() => setShowCamera(true)}
+            style={[styles.addButton, { backgroundColor: theme.card, borderColor: theme.border }]}
           >
-            <CameraIcon size={48} color={theme.tint} />
-            <Text style={styles.cameraLabel}>Tocar para sacar foto</Text>
+            <Plus size={32} color={theme.tint} />
+            <Text style={styles.addLabel}>Agregar Foto</Text>
           </TouchableOpacity>
-        )}
-      </View>
+        </View>
+      </ScrollView>
 
       <TouchableOpacity
         onPress={() => onNext(step.nextStep)}
-        disabled={step.required && photos.length === 0}
+        disabled={photos.length === 0}
         style={[
-          styles.nextButton, 
-          { 
-            backgroundColor: (step.required && photos.length === 0) ? theme.border : theme.tint,
-            marginTop: 32 
-          }
+          styles.nextButton,
+          { backgroundColor: photos.length > 0 ? theme.tint : theme.border }
         ]}
       >
-        <Text style={styles.nextButtonText}>Continuar</Text>
+        <Check size={24} color="#fff" />
+        <Text style={styles.nextButtonText}>Finalizar Registro</Text>
       </TouchableOpacity>
     </View>
   );
@@ -66,53 +87,58 @@ export function CameraStep({ step, onNext }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    gap: 16,
-  },
-  subtitle: {
-    fontSize: 14,
-    opacity: 0.6,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '900',
-    lineHeight: 38,
-  },
-  cameraPlaceholder: {
-    marginTop: 32,
-    height: 300,
-    borderRadius: 32,
-    overflow: 'hidden',
-  },
-  cameraButton: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    gap: 16,
   },
-  cameraLabel: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    opacity: 0.5,
+  scroll: {
+    flex: 1,
   },
-  photoGrid: {
+  grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    padding: 16,
+    gap: 12,
+    paddingBottom: 20,
   },
-  photoThumb: {
-    width: 80,
-    height: 80,
+  photoContainer: {
+    width: COLUMN_WIDTH,
+    height: COLUMN_WIDTH,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  photo: {
+    width: '100%',
+    height: '100%',
+  },
+  removeButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: 12,
+    padding: 4,
+  },
+  addButton: {
+    width: COLUMN_WIDTH,
+    height: COLUMN_WIDTH,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  addLabel: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    opacity: 0.5,
   },
   nextButton: {
     padding: 24,
     borderRadius: 24,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginTop: 20,
   },
   nextButtonText: {
     color: '#fff',
