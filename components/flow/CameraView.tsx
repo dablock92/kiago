@@ -63,41 +63,40 @@ export function CameraView({ onCapture, onClose }: Props) {
         style={styles.camera} 
         facing={facing}
         enableTorch={flash === 'on'}
-      >
-        <RNView style={styles.overlay}>
-          {/* Header */}
-          <RNView style={styles.header}>
-            <TouchableOpacity onPress={onClose}>
-              <X size={28} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setFlash(flash === 'on' ? 'off' : 'on')}>
-              {flash === 'on' ? <Zap size={28} color="#FFD700" /> : <ZapOff size={28} color="#fff" />}
-            </TouchableOpacity>
-          </RNView>
-
-          {/* Guide Frame */}
-          <RNView style={styles.guideContainer}>
-            <RNView style={styles.guideFrame} />
-            <Text style={styles.guideText}>Ubicar documento dentro del cuadro</Text>
-          </RNView>
-
-          {/* Footer Controls */}
-          <RNView style={styles.footer}>
-            <TouchableOpacity 
-              onPress={() => setFacing(facing === 'back' ? 'front' : 'back')}
-              style={styles.sideButton}
-            >
-              <RotateCcw size={28} color="#fff" />
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={takePicture} style={styles.captureButton}>
-              <RNView style={styles.captureInner} />
-            </TouchableOpacity>
-
-            <RNView style={styles.sideButton} />
-          </RNView>
+      />
+      <RNView style={styles.overlay}>
+        {/* Header */}
+        <RNView style={styles.header}>
+          <TouchableOpacity onPress={onClose}>
+            <X size={28} color="#fff" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setFlash(flash === 'on' ? 'off' : 'on')}>
+            {flash === 'on' ? <Zap size={28} color="#FFD700" /> : <ZapOff size={28} color="#fff" />}
+          </TouchableOpacity>
         </RNView>
-      </ExpoCamera>
+
+        {/* Guide Frame */}
+        <RNView style={styles.guideContainer}>
+          <RNView style={styles.guideFrame} />
+          <Text style={styles.guideText}>Ubicar documento dentro del cuadro</Text>
+        </RNView>
+
+        {/* Footer Controls */}
+        <RNView style={styles.footer}>
+          <TouchableOpacity 
+            onPress={() => setFacing(facing === 'back' ? 'front' : 'back')}
+            style={styles.sideButton}
+          >
+            <RotateCcw size={28} color="#fff" />
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={takePicture} style={styles.captureButton}>
+            <RNView style={styles.captureInner} />
+          </TouchableOpacity>
+
+          <RNView style={styles.sideButton} />
+        </RNView>
+      </RNView>
     </RNView>
   );
 }
@@ -114,7 +113,11 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   overlay: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.2)',
     justifyContent: 'space-between',
     paddingVertical: 40,

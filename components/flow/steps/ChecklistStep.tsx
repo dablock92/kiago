@@ -1,7 +1,8 @@
+import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
-import { Camera as CameraIcon, Check, CheckCircle2, Circle, X } from 'lucide-react-native';
+import { AlertCircle, Calendar, Camera as CameraIcon, Check, CheckCircle2, Circle, ThumbsDown, X } from 'lucide-react-native';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Image, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Switch, TextInput, TouchableOpacity } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 
 import { Text, View } from '@/components/Themed';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -16,7 +17,6 @@ interface Props {
   partyId?: string;
 }
 
-// Función utilitaria para detectar imágenes de forma segura
 const isImageUri = (val: any): boolean => {
   return typeof val === 'string' && val.startsWith('file://');
 };
@@ -25,7 +25,7 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
   const { currentIncident, updateResponse, updateInvolvedParty } = useIncidentStore();
-
+  
   const [activeItem, setActiveItem] = useState<ChecklistItem | null>(null);
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [isPhotoMode, setIsPhotoMode] = useState(false);
@@ -33,6 +33,10 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
   const [cameraSide, setCameraSide] = useState<'front' | 'back' | null>(null);
   const [useDniPhotoLocal, setUseDniPhotoLocal] = useState(false);
   const [tempDniPhotos, setTempDniPhotos] = useState<{front?: string, back?: string}>({});
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  
+  // Estado local para el texto de "Otro" motivo
+  const [otherReasonText, setOtherReasonText] = useState('');
 
   const currentParty = useMemo(() => 
     partyId ? currentIncident?.involvedParties.find(p => p.id === partyId) : null
@@ -74,54 +78,52 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
     return currentIncident?.responses?.[step?.id] || {};
   }, [currentIncident, step, partyId, currentParty]);
 
-  const completedIds = Object.keys(responses).filter(key => !!responses[key]);
-  
+  const handleToggleUnavailable = (itemId: string) => {
+    if (!partyId) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const currentUnavailable = currentParty?.unavailableFields || [];
+    const isUnavailable = currentUnavailable.includes(itemId);
+    const newUnavailable = isUnavailable 
+      ? currentUnavailable.filter(id => id !== itemId)
+      : [...currentUnavailable, itemId];
+    
+    updateInvolvedParty(partyId, { 
+      unavailableFields: newUnavailable,
+      ...(!isUnavailable ? {
+        insuranceCompany: itemId === 'aseguradora' ? undefined : currentParty?.insuranceCompany,
+        policyNumber: itemId === 'poliza_num' ? undefined : currentParty?.policyNumber,
+        insuranceValidity: itemId === 'vigencia_seguro' ? undefined : currentParty?.insuranceValidity,
+        plate: itemId === 'dominio_patente' ? undefined : currentParty?.plate,
+        ownerName: itemId === 'nombre_titular' ? undefined : currentParty?.ownerName,
+        phone: itemId === 'conductor_tel' ? undefined : currentParty?.phone,
+      } : {})
+    });
+    setActiveItem(null);
+  };
+
   const allCompleted = useMemo(() => {
-    if (partyId && currentParty) {
-      const requiredItems = items.filter(i => i.required);
-      return requiredItems.every(item => !!responses[item.id]);
-    }
-    return completedIds.length >= items.filter(i => i.type !== 'info' && i.type !== 'section').length;
-  }, [partyId, currentParty, responses, items, completedIds]);
+    const requiredItems = items.filter(i => i.required);
+    const unavailableFields = currentParty?.unavailableFields || [];
+    return requiredItems.every(item => !!responses[item.id] || unavailableFields.includes(item.id));
+  }, [items, responses, currentParty?.unavailableFields]);
 
   const handleItemPress = (item: ChecklistItem) => {
     if (item.type === 'section') return;
-
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (item.type === 'info') {
-      const isDone = completedIds.includes(item.id);
-      updateResponse(step.id, { ...responses, [item.id]: !isDone });
-    } else {
-      setActiveItem(item);
-      const val = responses[item.id] || '';
-      if (item.fields) {
-        const initialData: Record<string, string> = {};
-        if (partyId && currentParty) {
-           initialData['nombre'] = currentParty.name || '';
-           initialData['apellido'] = currentParty.surname || '';
-           setUseDniPhotoLocal(!!currentParty.useDniPhoto);
-        } else {
-           const parts = typeof val === 'string' ? val.split(' ') : [];
-           item.fields.forEach((f, i) => initialData[f.id] = parts[i] || '');
-        }
-        setFormData(initialData);
-      } else {
-        setFormData({ [item.id]: String(val) });
-      }
-      setIsPhotoMode(item.type === 'photo' || isImageUri(responses[item.id]));
+    if (currentParty?.unavailableFields?.includes(item.id)) {
+       handleToggleUnavailable(item.id);
+       return;
     }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setActiveItem(item);
+    const val = responses[item.id] || '';
+    setFormData(item.fields ? {} : { [item.id]: String(val) });
+    setIsPhotoMode(item.type === 'photo' || isImageUri(responses[item.id]));
   };
 
   const handleSaveItem = (valueOverride?: string) => {
     if (!activeItem) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
-    if (cameraSide) {
-      setTempDniPhotos(prev => ({ ...prev, [cameraSide]: valueOverride }));
-      setCameraSide(null);
-      return;
-    }
-
     let finalValue = valueOverride;
     if (!finalValue) {
       if (activeItem.fields) {
@@ -136,15 +138,9 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
       const photosUpdate = { ...(currentParty?.photos || {}) };
 
       if (activeItem.id === 'conductor_nombre') {
-        if (useDniPhotoLocal) {
-          update.name = 'Ver en foto';
-          update.surname = 'de DNI';
-          update.useDniPhoto = true;
-        } else {
-          update.name = formData['nombre'];
-          update.surname = formData['apellido'];
-          update.useDniPhoto = false;
-        }
+        update.name = formData['nombre'];
+        update.surname = formData['apellido'];
+        update.useDniPhoto = useDniPhotoLocal;
       } 
       else if (activeItem.id === 'aseguradora') update.insuranceCompany = finalValue;
       else if (activeItem.id === 'poliza_num') update.policyNumber = finalValue;
@@ -162,49 +158,50 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
       }
 
       update.photos = photosUpdate;
+      const newUnavailable = (currentParty?.unavailableFields || []).filter(id => id !== activeItem.id);
+      update.unavailableFields = newUnavailable;
       updateInvolvedParty(partyId, update);
-    } else {
-      updateResponse(step.id, { ...responses, [activeItem.id]: finalValue });
     }
-
-    if (activeItem.id === 'dni_photos' && !valueOverride) {
+    if (activeItem.id !== 'fotos_danos' || !valueOverride) {
       setActiveItem(null);
-      setCameraSide(null);
-    } else if (activeItem.id === 'dni_photos' && valueOverride) {
-       setCameraSide(null);
-    } else if (activeItem.id === 'fotos_danos' && valueOverride) {
-       // No cerramos el modal, dejamos que el usuario vea la galería y decida si agregar más
-    } else {
-      setActiveItem(null);
-      setIsPhotoMode(false);
-      setCameraSide(null);
     }
   };
 
-  const onCapturePhoto = (uri: string) => {
-    handleSaveItem(uri);
-    setShowCamera(false);
+  const hasUnavailableFields = (currentParty?.unavailableFields?.length || 0) > 0;
+
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(false);
+    if (selectedDate && activeItem) {
+      const dateString = selectedDate.toLocaleDateString('es-AR');
+      setFormData({ [activeItem.id]: dateString });
+    }
   };
 
-  if (showCamera) {
-    return <CameraView onCapture={onCapturePhoto} onClose={() => { setShowCamera(false); setCameraSide(null); }} />;
-  }
+  const handleSelectReason = (reason: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (reason === 'Otro') {
+      updateInvolvedParty(partyId!, { missingDataReason: 'Otro' });
+    } else {
+      updateInvolvedParty(partyId!, { missingDataReason: reason });
+      setOtherReasonText('');
+    }
+  };
+
+  const isSelected = (reason: string) => currentParty?.missingDataReason?.startsWith(reason);
 
   return (
     <View style={styles.container}>
       <ScrollView style={styles.listContainer} showsVerticalScrollIndicator={false}>
         <View style={styles.list}>
           {items.map((item) => {
-            const isDone = !!responses[item.id];
+            const isUnavailable = currentParty?.unavailableFields?.includes(item.id);
+            const isDone = !!responses[item.id] || isUnavailable;
             const value = responses[item.id];
-            const isImage = isImageUri(value);
             
             if (item.type === 'section') {
               return (
                 <View key={item.id} style={styles.sectionHeader}>
-                  <Text style={[styles.sectionLabel, { color: theme.tabIconDefault }]}>
-                    {item?.label}
-                  </Text>
+                  <Text style={[styles.sectionLabel, { color: theme.tabIconDefault }]}>{item?.label}</Text>
                   <View style={[styles.sectionLine, { backgroundColor: theme.border }]} />
                 </View>
               );
@@ -216,12 +213,20 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
                 onPress={() => handleItemPress(item)}
                 style={[
                   styles.item,
-                  { backgroundColor: 'transparent', borderColor: isDone ? '#10B981' : theme.border }
+                  { 
+                    backgroundColor: isUnavailable ? theme.border + '15' : 'transparent', 
+                    borderColor: isDone ? (isUnavailable ? '#F59E0B' : '#10B981') : theme.border,
+                    opacity: isUnavailable ? 0.6 : 1
+                  }
                 ]}
               >
                 <View style={styles.itemContent}>
                   {isDone ? (
-                    <CheckCircle2 size={24} color="#10B981" />
+                    isUnavailable ? (
+                      <ThumbsDown size={24} color="#F59E0B" />
+                    ) : (
+                      <CheckCircle2 size={24} color="#10B981" />
+                    )
                   ) : (
                     <Circle size={24} color={theme.text} opacity={0.3} />
                   )}
@@ -230,476 +235,247 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
                       <Text style={[styles.itemLabel, isDone && styles.itemDone]}>{item?.label}</Text>
                       {item?.required && !isDone && <Text style={styles.asterisk}>*</Text>}
                     </View>
-                    {isDone && item.type !== 'info' && (
-                      <Text 
-                        numberOfLines={1}
-                        style={{ fontSize: 11, color: '#10B981', fontWeight: 'bold', marginTop: 0 }}
-                      >
-                        {item.id === 'dni_photos' 
-                          ? '✅ Ambos lados' 
-                          : isImage 
-                            ? '✅ Foto capturada' 
-                            : value}
-                      </Text>
+                    {item.hint && !isDone && (
+                      <Text style={styles.hintText}>{item.hint}</Text>
+                    )}
+                    {isDone && !isUnavailable && (
+                      <Text numberOfLines={1} style={styles.itemValueText}>{value}</Text>
                     )}
                   </View>
                 </View>
               </TouchableOpacity>
             );
           })}
+
+          {hasUnavailableFields && (
+            <View style={[styles.missingDataCard, { backgroundColor: theme.card, borderColor: '#F59E0B' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <AlertCircle size={20} color="#F59E0B" />
+                <Text style={styles.missingDataTitle}>Datos obligatorios faltantes</Text>
+              </View>
+              <Text style={styles.missingDataSub}>Indica el motivo por el cual no pudiste obtener los datos</Text>
+              <Text style={[styles.missingDataSub, { fontWeight: 'bold', marginTop: 8 }]}>El involucrado...</Text>
+              
+              <View style={styles.chipsRow}>
+                {['Se dio a la fuga', 'Estaba agresivo', 'No quiso cooperar', 'Otro'].map((reason) => {
+                  const active = isSelected(reason);
+                  return (
+                    <TouchableOpacity 
+                      key={reason}
+                      onPress={() => handleSelectReason(reason)}
+                      style={[
+                        styles.chip, 
+                        { 
+                          backgroundColor: active ? 'transparent' : theme.border + '30',
+                          borderColor: active ? '#F59E0B' : theme.border + '50'
+                        }
+                      ]}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, width: '100%', backgroundColor: 'transparent'}}>
+                        {active ? (
+                          <CheckCircle2 size={22} color="#F59E0B" />
+                        ) : (
+                          <Circle size={22} color={theme.text} opacity={0.3} />
+                        )}
+                        <Text style={[styles.chipText, active && { color: '#F59E0B', fontWeight: 'bold', }]}>
+                          {reason}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {isSelected('Otro') && (
+                <TextInput
+                  style={[styles.missingDataInput, { color: theme.text, borderColor: '#F59E0B' }]}
+                  placeholder="Escriba el motivo..."
+                  placeholderTextColor={theme.tabIconDefault}
+                  multiline
+                  autoFocus
+                  value={currentParty?.missingDataReason === 'Otro' ? '' : currentParty?.missingDataReason?.replace('Otro: ', '')}
+                  onChangeText={(text) => updateInvolvedParty(partyId!, { missingDataReason: `Otro: ${text}` })}
+                />
+              )}
+            </View>
+          )}
         </View>
       </ScrollView>
 
       <TouchableOpacity
         onPress={() => onNext(step.nextStep)}
         disabled={!allCompleted}
-        style={[
-          styles.nextButton,
-          { backgroundColor: allCompleted ? theme.tint : theme.border }
-        ]}
+        style={[styles.nextButton, { backgroundColor: allCompleted ? theme.tint : theme.border }]}
       >
         <Text style={styles.nextButtonText}>{partyId ? 'Cerrar Ficha' : 'Continuar'}</Text>
       </TouchableOpacity>
 
       <Modal visible={!!activeItem} animationType="slide" transparent={true}>
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
-          style={styles.modalOverlay}
-        >
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.background }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{activeItem?.label}</Text>
-              <TouchableOpacity onPress={() => { setActiveItem(null); setIsPhotoMode(false); setCameraSide(null); }}>
+              <View>
+                <Text style={styles.modalTitle}>{activeItem?.label}</Text>
+                {activeItem?.hint && <Text style={styles.modalHint}>{activeItem.hint}</Text>}
+              </View>
+              <TouchableOpacity onPress={() => setActiveItem(null)}>
                 <X size={24} color={theme.text} />
               </TouchableOpacity>
             </View>
 
-            {activeItem?.id === 'dni_photos' ? (
-              <View style={styles.dualPhotoContainer}>
-                 <View style={styles.photoRow}>
-                    <TouchableOpacity 
-                      onPress={() => { setCameraSide('front'); setShowCamera(true); }}
-                      style={[styles.photoSlot, { backgroundColor: theme.card, borderColor: theme.border }]}
-                    >
-                      {tempDniPhotos.front ? (
-                        <Image source={{ uri: tempDniPhotos.front }} style={styles.previewImage} />
-                      ) : (
-                        <>
-                          <CameraIcon size={32} color={theme.tint} />
-                          <Text style={styles.slotLabel}>FRENTE</Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                      onPress={() => { setCameraSide('back'); setShowCamera(true); }}
-                      style={[styles.photoSlot, { backgroundColor: theme.card, borderColor: theme.border }]}
-                    >
-                      {tempDniPhotos.back ? (
-                        <Image source={{ uri: tempDniPhotos.back }} style={styles.previewImage} />
-                      ) : (
-                        <>
-                          <CameraIcon size={32} color={theme.tint} />
-                          <Text style={styles.slotLabel}>DORSO</Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
-                 </View>
-                 <TouchableOpacity 
-                    onPress={() => handleSaveItem()}
-                    disabled={!(tempDniPhotos.front && tempDniPhotos.back)}
-                    style={[
-                      styles.saveButton, 
-                      { 
-                        backgroundColor: (tempDniPhotos.front && tempDniPhotos.back) ? theme.tint : theme.border,
-                        marginTop: 20 
-                      }
-                    ]}
-                  >
-                    <Text style={styles.saveButtonText}>Guardar fotos</Text>
-                  </TouchableOpacity>
-              </View>
-            ) : (isPhotoMode || activeItem?.type === 'photo' || activeItem?.type === 'camera') ? (
-              <View style={styles.photoContainer}>
-                {activeItem?.id === 'fotos_danos' && currentParty?.photos?.damage && currentParty.photos.damage.length > 0 && (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.galleryScroll}>
-                    {currentParty.photos.damage.map((uri, idx) => (
-                      <View key={idx} style={styles.galleryItem}>
-                        <Image source={{ uri }} style={styles.galleryImage} />
-                        <TouchableOpacity 
-                          style={styles.removePhotoBadge}
-                          onPress={() => {
-                            const newDamage = currentParty.photos.damage?.filter((_, i) => i !== idx);
-                            updateInvolvedParty(partyId!, { 
-                              photos: { ...currentParty.photos, damage: newDamage } 
-                            });
-                          }}
-                        >
-                          <X size={14} color="#fff" />
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                  </ScrollView>
-                )}
-
-                <TouchableOpacity 
-                  onPress={() => setShowCamera(true)}
-                  style={[
-                    styles.photoButton, 
-                    { backgroundColor: theme.card, borderColor: theme.border },
-                    activeItem?.id === 'fotos_danos' && { height: 120 }
-                  ]}
-                >
-                  <CameraIcon size={activeItem?.id === 'fotos_danos' ? 32 : 64} color={theme.tint} />
-                  <Text style={[styles.photoText, activeItem?.id === 'fotos_danos' && { fontSize: 14 }]}>
-                    {activeItem?.id === 'fotos_danos' && (currentParty?.photos?.damage?.length || 0) > 0 
-                      ? 'Agregar otra foto' 
-                      : 'Tocar para capturar foto'}
-                  </Text>
-                </TouchableOpacity>
-
-                {activeItem?.id === 'fotos_danos' && (
-                  <TouchableOpacity 
-                    onPress={() => setActiveItem(null)}
-                    disabled={(currentParty?.photos?.damage?.length || 0) === 0}
-                    style={[
-                      styles.saveButton, 
-                      { backgroundColor: (currentParty?.photos?.damage?.length || 0) > 0 ? theme.tint : theme.border }
-                    ]}
-                  >
-                    <Text style={styles.saveButtonText}>Guardar evidencia</Text>
-                  </TouchableOpacity>
-                )}
-
-                {activeItem?.allowPhoto && activeItem.id !== 'fotos_danos' && (
-                  <TouchableOpacity onPress={() => setIsPhotoMode(false)} style={styles.switchButton}>
-                    <Text style={{ color: theme.tint }}>Prefiero escribir el dato</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            ) : (
-              <View style={styles.inputContainer}>
-                {activeItem?.fields ? (
-                  <>
-                    <View style={styles.fieldsGrid}>
-                      {activeItem.fields.map(field => (
-                        <View key={field.id} style={styles.fieldWrapper}>
-                          <Text style={styles.fieldLabel}>{field.label}</Text>
-                          <TextInput
-                            style={[
-                              styles.input, 
-                              { backgroundColor: theme.card, borderColor: theme.border, color: theme.text },
-                              useDniPhotoLocal && { opacity: 0.5 }
-                            ]}
-                            placeholder={field.placeholder || field.label}
-                            placeholderTextColor={theme.tabIconDefault}
-                            value={formData[field.id]}
-                            onChangeText={(text) => setFormData({ ...formData, [field.id]: text })}
-                            editable={!useDniPhotoLocal}
-                          />
-                        </View>
-                      ))}
+            <View style={styles.inputContainer}>
+              {activeItem?.fields ? (
+                <View style={styles.fieldsGrid}>
+                  {activeItem.fields.map(field => (
+                    <View key={field.id} style={styles.fieldWrapper}>
+                      <Text style={styles.fieldLabel}>{field.label}</Text>
+                      <TextInput
+                        style={[styles.input, { backgroundColor: theme.card, borderColor: theme.border, color: theme.text }]}
+                        placeholder={field.placeholder || field.label}
+                        placeholderTextColor={theme.tabIconDefault}
+                        value={formData[field.id]}
+                        onChangeText={(text) => setFormData({ ...formData, [field.id]: text })}
+                      />
                     </View>
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.inputWrapper}>
+                  {!isPhotoMode ? (
+                    activeItem?.type === 'date' ? (
+                      <TouchableOpacity 
+                        onPress={() => setShowDatePicker(true)}
+                        style={[styles.input, { backgroundColor: theme.card, borderColor: theme.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}
+                      >
+                        <Text style={{ color: formData[activeItem.id] ? theme.text : theme.tabIconDefault, fontSize: 18 }}>
+                          {formData[activeItem.id] || activeItem.placeholder || "Seleccionar fecha"}
+                        </Text>
+                        <Calendar size={24} color={theme.tint} />
+                      </TouchableOpacity>
+                    ) : (
+                      <TextInput
+                        style={[styles.input, { backgroundColor: theme.card, borderColor: theme.border, color: theme.text }]}
+                        placeholder={activeItem?.placeholder || "Escribir aquí..."}
+                        placeholderTextColor={theme.tabIconDefault}
+                        value={formData[activeItem?.id || '']}
+                        onChangeText={(text) => setFormData({ [activeItem?.id || '']: text })}
+                        autoFocus
+                      />
+                    )
+                  ) : (
+                    <TouchableOpacity 
+                      onPress={() => setShowCamera(true)}
+                      style={[styles.photoButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+                    >
+                      <CameraIcon size={48} color={theme.tint} />
+                      <Text style={styles.photoText}>Tomar Foto</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
 
-                    {activeItem.id === 'conductor_nombre' && (
-                      <TouchableOpacity 
-                        style={[styles.toggleContainer, { backgroundColor: theme.card, borderColor: theme.border }]}
-                        onPress={() => {
-                          const newValue = !useDniPhotoLocal;
-                          setUseDniPhotoLocal(newValue);
-                          if (newValue) {
-                            setFormData(prev => ({ ...prev, nombre: '', apellido: '' }));
-                          }
-                        }}
-                        activeOpacity={0.7}
-                      >
-                         <View style={styles.toggleInfo}>
-                            <Text style={styles.toggleTitle}>USAR FOTO DE DNI</Text>
-                            <Text style={styles.toggleSub}>Se completará con las fotos capturadas</Text>
-                         </View>
-                         <Switch 
-                            value={useDniPhotoLocal} 
-                            onValueChange={(val) => {
-                              setUseDniPhotoLocal(val);
-                              if (val) {
-                                setFormData(prev => ({ ...prev, nombre: '', apellido: '' }));
-                              }
-                            }}
-                            trackColor={{ false: theme.border, true: theme.tint }}
-                         />
-                      </TouchableOpacity>
-                    )}
-                  </>
-                ) : (
-                  <View style={styles.inputWrapper}>
-                    <TextInput
-                      style={[styles.input, { backgroundColor: theme.card, borderColor: theme.border, color: theme.text }]}
-                      placeholder={activeItem?.placeholder || "Escribir aquí..."}
-                      placeholderTextColor={theme.tabIconDefault}
-                      value={formData[activeItem?.id || '']}
-                      onChangeText={(text) => setFormData({ [activeItem?.id || '']: text })}
-                      autoFocus
-                    />
-                    {activeItem?.allowPhoto && (
-                      <TouchableOpacity 
-                        onPress={() => setIsPhotoMode(true)}
-                        style={[styles.inputIcon, { backgroundColor: theme.border }]}
-                      >
-                        <CameraIcon size={20} color={theme.text} />
-                      </TouchableOpacity>
-                    )}
-                  </View>
+              <View style={{ gap: 12, marginTop: 10 }}>
+                {activeItem?.required && (
+                  <TouchableOpacity 
+                    onPress={() => handleToggleUnavailable(activeItem.id)}
+                    style={[styles.unavailableAction, { borderColor: 'transparent' }]}
+                  >
+                    <ThumbsDown size={20} color={theme.tint} />
+                    <Text style={[styles.unavailableActionText, { color: theme.tint, opacity: 0.5 }]}>No logré obtenerlo</Text>
+                  </TouchableOpacity>
                 )}
-                
+
                 <TouchableOpacity 
                   onPress={() => handleSaveItem()}
-                  style={[styles.saveButton, { backgroundColor: theme.tint, marginTop: 10 }]}
+                  style={[styles.saveButton, { backgroundColor: theme.tint }]}
                 >
                   <Check size={24} color="#fff" />
                   <Text style={styles.saveButtonText}>Guardar</Text>
                 </TouchableOpacity>
               </View>
-            )}
+            </View>
           </View>
         </KeyboardAvoidingView>
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={new Date()}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={onDateChange}
+            minimumDate={new Date()}
+          />
+        )}
+      </Modal>
+
+      <Modal visible={showCamera} animationType="fade" transparent={false}>
+         <CameraView 
+            visible={showCamera} 
+            onClose={() => { setShowCamera(false); setCameraSide(null); }} 
+            onCapture={(uri) => {
+              if (activeItem?.id === 'dni_photos') {
+                setTempDniPhotos(prev => ({ ...prev, [cameraSide!]: uri }));
+                setShowCamera(false);
+              } else {
+                handleSaveItem(uri);
+                setShowCamera(false);
+              }
+            }} 
+          />
       </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    gap: 16,
-  },
-  listContainer: {
-    flex: 1,
-  },
-  list: {
-    marginTop: 10,
-    gap: 12,
-    paddingBottom: 20,
-  },
-  sectionHeader: {
-    marginTop: 16,
-    marginBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  sectionLine: {
-    flex: 1,
-    height: 1,
-    opacity: 0.5,
-  },
-  item: {
-    padding: 16,
-    borderRadius: 24,
-    borderWidth: 2,
-    minHeight: 70,
-    justifyContent: 'center',
-  },
-  itemContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  textContainer: {
-    flex: 1,
-  },
-  labelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  itemLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  asterisk: {
-    color: '#EF4444',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  itemDone: {
-    opacity: 0.5,
-  },
-  nextButton: {
-    padding: 24,
-    borderRadius: 24,
-    alignItems: 'center',
-    marginBottom: Platform.OS === 'ios' ? 0 : 20,
-  },
-  nextButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    padding: 24,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 32,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-  },
-  inputContainer: {
-    gap: 16,
-  },
-  fieldsGrid: {
-    gap: 12,
-  },
-  fieldWrapper: {
-    gap: 8,
-  },
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    opacity: 0.6,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  input: {
+  container: { flex: 1 },
+  listContainer: { flex: 1 },
+  list: { padding: 20, gap: 12 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16 },
+  sectionLabel: { fontSize: 12, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1 },
+  sectionLine: { flex: 1, height: 1, opacity: 0.5 },
+  item: { padding: 16, borderRadius: 24, borderWidth: 2 },
+  itemContent: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  textContainer: { flex: 1 },
+  labelRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  itemLabel: { fontSize: 16, fontWeight: '700' },
+  hintText: { fontSize: 12, opacity: 0.5, fontStyle: 'italic', marginTop: 2 },
+  itemDone: { opacity: 0.5 },
+  itemValueText: { fontSize: 11, color: '#10B981', fontWeight: 'bold', marginTop: 2 },
+  asterisk: { color: '#EF4444', fontSize: 18, fontWeight: 'bold' },
+  missingDataCard: { marginTop: 20, padding: 20, borderRadius: 24, borderWidth: 2, gap: 12 },
+  missingDataTitle: { fontSize: 16, fontWeight: '900', color: '#F59E0B' },
+  missingDataSub: { fontSize: 13, opacity: 0.6, marginBottom: 4 },
+  chipsRow: { gap: 10, marginBottom: 12, marginTop: 8, backgroundColor: 'transparent' },
+  chip: { 
     width: '100%',
-    padding: 20,
+    padding: 16, 
     borderRadius: 20,
-    borderWidth: 1,
-    fontSize: 18,
-  },
-  inputIcon: {
-    position: 'absolute',
-    right: 12,
-    padding: 12,
-    borderRadius: 16,
-  },
-  saveButton: {
-    padding: 20,
-    borderRadius: 20,
+    borderWidth: 1.5,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
+    paddingLeft: 20,
+    backgroundColor: 'transparent'
   },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  photoContainer: {
-    gap: 20,
-  },
-  photoButton: {
-    height: 200,
-    borderRadius: 32,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 20,
-  },
-  photoText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    opacity: 0.5,
-  },
-  switchButton: {
-    alignItems: 'center',
-    padding: 10,
-  },
-  toggleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-    marginTop: 8,
-  },
-  toggleInfo: {
-    flex: 1,
-  },
-  toggleTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  toggleSub: {
-    fontSize: 12,
-    opacity: 0.6,
-  },
-  dualPhotoContainer: {
-    gap: 12,
-  },
-  photoRow: {
-    flexDirection: 'row',
-    gap: 12,
-    justifyContent: 'space-between',
-  },
-  photoSlot: {
-    flex: 1,
-    aspectRatio: 1,
-    borderRadius: 24,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    overflow: 'hidden',
-  },
-  slotLabel: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    opacity: 0.5,
-  },
-  previewImage: {
-    width: '100%',
-    height: '100%',
-  },
-  galleryScroll: {
-    maxHeight: 120,
-    marginBottom: 10,
-  },
-  galleryItem: {
-    width: 100,
-    height: 100,
-    borderRadius: 16,
-    marginRight: 12,
-    overflow: 'hidden',
-  },
-  galleryImage: {
-    width: '100%',
-    height: '100%',
-  },
-  removePhotoBadge: {
-    position: 'absolute',
-    top: 5,
-    right: 5,
-    backgroundColor: '#EF4444',
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
-  }
+  chipText: { fontSize: 15, fontWeight: '600' },
+  missingDataInput: { borderWidth: 1.5, borderRadius: 20, padding: 16, minHeight: 80, textAlignVertical: 'top', marginTop: 8 },
+  nextButton: { padding: 24, borderRadius: 24, alignItems: 'center', margin: 20 },
+  nextButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 40 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24 },
+  modalTitle: { fontSize: 22, fontWeight: 'bold' },
+  modalHint: { fontSize: 14, opacity: 0.5, fontStyle: 'italic', marginTop: 2 },
+  inputContainer: { gap: 16 },
+  fieldsGrid: { gap: 12 },
+  fieldWrapper: { gap: 8 },
+  fieldLabel: { fontSize: 14, fontWeight: 'bold', opacity: 0.6 },
+  inputWrapper: { width: '100%' },
+  input: { width: '100%', padding: 20, borderRadius: 20, borderWidth: 1, fontSize: 18 },
+  photoButton: { height: 120, borderRadius: 24, borderWidth: 2, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  photoText: { fontSize: 16, fontWeight: 'bold', opacity: 0.5 },
+  saveButton: { padding: 20, borderRadius: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 },
+  saveButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  unavailableAction: { padding: 16, borderRadius: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 },
+  unavailableActionText: { fontSize: 16, fontWeight: 'bold' }
 });

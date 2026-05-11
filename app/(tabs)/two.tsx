@@ -73,7 +73,7 @@ function SettingItem({ icon, label, value, disabled }: { icon: React.ReactNode, 
         <View style={[styles.iconBox, { backgroundColor: theme.background }]}>
           {icon}
         </View>
-        <View>
+        <View style={{ backgroundColor: 'transparent' }}>
           <Text style={styles.itemLabel}>{label}</Text>
           <Text style={styles.itemValue}>{value}</Text>
         </View>

@@ -22,6 +22,8 @@ export interface InvolvedParty {
     damage?: string[]; // Array para múltiples fotos del daño
   };
   useDniPhoto?: boolean;
+  unavailableFields?: string[]; // IDs de campos obligatorios que no se pudieron obtener
+  missingDataReason?: string; // Explicación de por qué faltan datos
 }
 
 interface Incident {

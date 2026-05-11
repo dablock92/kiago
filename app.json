@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "kiago",
+    "name": "Kiago",
     "slug": "kiago",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,7 +8,7 @@
     "scheme": "kiago",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/images/splash-icon.png",
+      "image": "./assets/images/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -18,10 +18,9 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#FFFFFF"
       },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "package": "com.kiago.app"
     },
     "web": {
       "bundler": "metro",
@@ -29,7 +28,8 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true

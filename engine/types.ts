@@ -8,7 +8,8 @@ export type StepType =
   | 'emergency' 
   | 'action' 
   | 'location'
-  | 'involved_management';
+  | 'involved_management'
+  | 'construction';
 
 export interface Option {
   label: string;
@@ -27,6 +28,7 @@ export interface ChecklistItem {
   required?: boolean;
   fields?: Field[];
   completed?: boolean;
+  hint?: string;
 }
 
 export interface Step {
@@ -44,8 +46,9 @@ export interface Step {
 export interface Field {
   id: string;
   label: string;
-  type: 'text' | 'phone' | 'number';
+  type: 'text' | 'phone' | 'number' | 'date';
   placeholder?: string;
+  hint?: string;
 }
 
 export interface Flow {

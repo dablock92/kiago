@@ -1,19 +1,21 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
-import React, { useMemo, useState } from 'react';
-import { StyleSheet, TouchableOpacity } from 'react-native';
+import { ChevronLeft, Trash2 } from 'lucide-react-native';
+import React, { useState, useMemo } from 'react';
+import { StyleSheet, TouchableOpacity, Alert } from 'react-native';
 
 import { Text, View } from '@/components/Themed';
 import { FlowRenderer } from '@/components/flow/FlowRenderer';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
-import { flows } from '@/data/flows/choque';
+import { flows } from '@/data/flows';
+import { useIncidentStore } from '@/store/useIncidentStore';
 
 export default function FlowScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
+  const { completeIncident } = useIncidentStore();
 
   // Buscamos el flujo de forma segura
   const flow = useMemo(() => {
@@ -51,6 +53,24 @@ export default function FlowScreen() {
     }
   };
 
+  const handleCancel = () => {
+    Alert.alert(
+      "Cancelar reporte",
+      "¿Estás seguro? Se borrarán todos los datos capturados hasta ahora.",
+      [
+        { text: "Continuar", style: "cancel" },
+        { 
+          text: "Sí, cancelar", 
+          style: "destructive",
+          onPress: () => {
+            completeIncident(); // Limpia el store
+            router.replace('/');
+          }
+        }
+      ]
+    );
+  };
+
   if (!flow || !currentStep) {
     return (
       <View style={styles.errorContainer}>
@@ -67,6 +87,11 @@ export default function FlowScreen() {
           headerLeft: () => (
             <TouchableOpacity onPress={handleBack} style={{ marginLeft: 0 }}>
               <ChevronLeft color={theme.text} size={28} />
+            </TouchableOpacity>
+          ),
+          headerRight: () => (
+            <TouchableOpacity onPress={handleCancel} style={{ marginRight: 0 }}>
+              <Trash2 color="#EF4444" size={24} />
             </TouchableOpacity>
           ),
         }} 
