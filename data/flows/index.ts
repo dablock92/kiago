@@ -116,6 +116,7 @@ export const choqueFlow: Flow = {
           allowPhoto: true,
           required: true,
           placeholder: "Seleccionar fecha o toma foto",
+          hint: "Este dato lo necesita la otra persona involucrada también, asegurate de brindar el tuyo.",
         },
         { id: "sec_vehiculo", label: "DATOS DEL VEHÍCULO", type: "section" },
         {
@@ -160,9 +161,10 @@ export const choqueFlow: Flow = {
         },
         {
           id: "dni_photos",
-          label: "Fotos de DNI (Frente y Dorso)",
+          label: "Identidad (DNI)",
           type: "photo",
-          required: true,
+          required: false,
+          hint: "Podés ingresar el número de DNI o sacar fotos del documento (opcional).",
         },
         {
           id: "licencia_img",
@@ -170,6 +172,7 @@ export const choqueFlow: Flow = {
           type: "photo",
           allowPhoto: true,
           required: true,
+          hint: "Captura obligatoria de la licencia de conducir vigente.",
         },
         {
           id: "conductor_tel",
@@ -185,6 +188,7 @@ export const choqueFlow: Flow = {
           label: "Fotos del Daño",
           type: "camera",
           required: true,
+          hint: "Capturá abolladuras y raspaduras de cerca. Sumá una foto de lejos que muestre el daño junto a la patente para contexto legal.",
         },
       ],
       nextStep: "resumen",

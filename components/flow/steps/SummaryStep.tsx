@@ -1,24 +1,34 @@
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
-import { Camera, Car, FileText, Mail, Save, AtSign } from "lucide-react-native";
-import React, { useState, useEffect } from "react";
 import {
+  AtSign,
+  Camera,
+  Car,
+  CheckCircle2,
+  FileText,
+  Mail,
+  Save,
+  X,
+} from "lucide-react-native";
+import React, { useEffect, useState } from "react";
+import {
+  Alert,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
-  TouchableOpacity,
-  Alert,
   TextInput,
+  TouchableOpacity,
 } from "react-native";
 
 import { Text, View } from "@/components/Themed";
 import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 import { Step } from "../../../engine/types";
+import { saveIncidentToDb } from "../../../services/databaseService";
+import { exportIncidentToMail } from "../../../services/exportService";
 import { useIncidentStore } from "../../../store/useIncidentStore";
 import { useSettingsStore } from "../../../store/useSettingsStore";
-import { exportIncidentToMail } from "../../../services/exportService";
-import { saveIncidentToDb } from "../../../services/databaseService";
 
 interface Props {
   step: Step;
@@ -47,6 +57,7 @@ export function SummaryStep({ step }: Props) {
 
   const [isExporting, setIsExporting] = useState(false);
   const [recipientEmail, setRecipientEmail] = useState("");
+  const [showSendModal, setShowSendModal] = useState(false);
 
   useEffect(() => {
     if (settings.insuranceEmail) {
@@ -59,27 +70,34 @@ export function SummaryStep({ step }: Props) {
     setIsExporting(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
-      await exportIncidentToMail(currentIncident, recipientEmail);
-    } catch (error) {
+      await exportIncidentToMail(currentIncident, recipientEmail.trim());
+    } catch {
       Alert.alert("Error", "No se pudo abrir la aplicación de correo.");
     } finally {
       setIsExporting(false);
     }
   };
 
-  const handleFinish = async () => {
+  const handleSaveAndConfirm = async () => {
     if (!currentIncident) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
     try {
       await saveIncidentToDb(currentIncident);
-      completeIncident();
-      router.replace("/");
+      setShowSendModal(true);
     } catch (error) {
       console.error("Error saving to DB:", error);
-      completeIncident();
-      router.replace("/");
+      Alert.alert(
+        "Aviso",
+        "El reporte no pudo guardarse localmente, pero podés intentar enviarlo por correo.",
+        [{ text: "Continuar", onPress: () => setShowSendModal(true) }],
+      );
     }
+  };
+
+  const handleFinalExit = () => {
+    completeIncident();
+    router.replace("/");
   };
 
   const parties = currentIncident?.involvedParties || [];
@@ -97,47 +115,39 @@ export function SummaryStep({ step }: Props) {
         showsVerticalScrollIndicator={true}
       >
         <View style={styles.header}>
-          <Text style={[styles.mainTitle, { color: theme.text }]}>
-            Resumen del Incidente
-          </Text>
           <Text style={styles.subtitle}>
             Verificá los datos antes de enviar
           </Text>
         </View>
 
-        {/* Sección de Envío (NUEVA) */}
-        <View
-          style={[
-            styles.emailSection,
-            { backgroundColor: theme.card, borderColor: theme.border },
-          ]}
-        >
-          <View style={styles.emailHeader}>
-            <AtSign size={18} color={theme.tint} />
-            <Text style={styles.emailTitle}>Correo de la Aseguradora</Text>
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <FileText size={18} color={theme.tint} />
+            <Text style={styles.sectionTitle}>Detalles del hecho</Text>
           </View>
-          <TextInput
+          <View
             style={[
-              styles.emailInput,
-              { color: theme.text, borderColor: theme.border },
+              styles.card,
+              { backgroundColor: theme.card, borderColor: theme.border },
             ]}
-            placeholder="ej: denuncias@seguro.com"
-            placeholderTextColor={theme.tabIconDefault}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            value={recipientEmail}
-            onChangeText={setRecipientEmail}
-          />
-          <Text style={styles.emailHint}>
-            Este es el destinatario que recibirá el informe completo con fotos.
-          </Text>
+          >
+            {Object.entries(responses).map(([key, value]) => {
+              if (typeof value === "object") return null;
+              return (
+                <View key={key} style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>{formatLabel(key)}:</Text>
+                  <Text style={styles.infoValue}>{String(value)}</Text>
+                </View>
+              );
+            })}
+          </View>
         </View>
 
         {parties.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <UserIcon size={18} color={theme.tint} />
-              <Text style={styles.sectionTitle}>Vehículos Involucrados</Text>
+              <Text style={styles.sectionTitle}>Involucrados</Text>
             </View>
             {parties.map((party, idx) => (
               <View
@@ -176,8 +186,11 @@ export function SummaryStep({ step }: Props) {
                     <Camera size={12} color={theme.text} opacity={0.5} />
                     <Text style={styles.photoCount}>
                       {(party.photos.damage?.length || 0) +
-                        (party.photos.dniFront ? 2 : 0) +
-                        (party.photos.license ? 1 : 0)}{" "}
+                        (party.photos.dniFront ? 1 : 0) +
+                        (party.photos.dniBack ? 1 : 0) +
+                        (party.photos.licenseFront ? 1 : 0) +
+                        (party.photos.licenseBack ? 1 : 0) +
+                        (party.photos.plate ? 1 : 0)}{" "}
                       fotos de evidencia
                     </Text>
                   </View>
@@ -187,52 +200,114 @@ export function SummaryStep({ step }: Props) {
           </View>
         )}
 
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <FileText size={18} color={theme.tint} />
-            <Text style={styles.sectionTitle}>Detalles del hecho</Text>
-          </View>
-          <View
-            style={[
-              styles.card,
-              { backgroundColor: theme.card, borderColor: theme.border },
-            ]}
-          >
-            {Object.entries(responses).map(([key, value]) => {
-              if (typeof value === "object") return null;
-              return (
-                <View key={key} style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>{formatLabel(key)}:</Text>
-                  <Text style={styles.infoValue}>{String(value)}</Text>
-                </View>
-              );
-            })}
-          </View>
-        </View>
-
         <View style={{ height: 40 }} />
       </ScrollView>
 
       <View style={[styles.footer, { backgroundColor: theme.background }]}>
         <TouchableOpacity
-          onPress={handleSendMail}
-          disabled={isExporting}
-          style={[styles.outlineButton, { borderColor: theme.border }]}
-        >
-          <Mail size={20} color={theme.text} />
-          <Text style={[styles.outlineButtonText, { color: theme.text }]}>
-            Enviar Informe
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={handleFinish}
+          onPress={handleSaveAndConfirm}
           style={[styles.primaryButton, { backgroundColor: theme.tint }]}
         >
           <Save size={20} color="#fff" />
           <Text style={styles.primaryButtonText}>Guardar y Finalizar</Text>
         </TouchableOpacity>
       </View>
+
+      <Modal visible={showSendModal} animationType="slide" transparent={true}>
+        <View style={styles.modalOverlay}>
+          <View
+            style={[styles.modalContent, { backgroundColor: theme.background }]}
+          >
+            <View style={styles.modalHeader}>
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
+              >
+                <CheckCircle2 size={24} color="#10B981" />
+                <Text style={styles.modalTitle}>¡Reporte Guardado!</Text>
+              </View>
+              <TouchableOpacity onPress={handleFinalExit}>
+                <X size={24} color={theme.text} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+              <Text style={[styles.modalText, { color: theme.text }]}>
+                Los datos ya están seguros en tu dispositivo. ¿Deseás enviar el
+                informe ahora a tu aseguradora?
+              </Text>
+
+              <View
+                style={[
+                  styles.emailSection,
+                  {
+                    backgroundColor: theme.card,
+                    borderColor: !recipientEmail ? "#F59E0B" : theme.border,
+                    borderWidth: !recipientEmail ? 2 : 1,
+                    marginTop: 20,
+                  },
+                ]}
+              >
+                <View style={styles.emailHeader}>
+                  <AtSign
+                    size={18}
+                    color={!recipientEmail ? "#F59E0B" : theme.tint}
+                  />
+                  <Text style={styles.emailTitle}>
+                    Correo de la Aseguradora
+                  </Text>
+                </View>
+                <TextInput
+                  style={[
+                    styles.emailInput,
+                    { color: theme.text, borderColor: theme.border },
+                  ]}
+                  placeholder="ej: denuncias@seguro.com"
+                  placeholderTextColor={theme.tabIconDefault}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  value={recipientEmail}
+                  onChangeText={setRecipientEmail}
+                />
+              </View>
+
+              <View style={{ gap: 12, marginTop: 24 }}>
+                <TouchableOpacity
+                  onPress={handleSendMail}
+                  disabled={
+                    isExporting ||
+                    !recipientEmail.trim() ||
+                    !recipientEmail.includes("@")
+                  }
+                  style={[
+                    styles.primaryButton,
+                    {
+                      backgroundColor: theme.tint,
+                      opacity:
+                        !recipientEmail.trim() || !recipientEmail.includes("@")
+                          ? 0.5
+                          : 1,
+                    },
+                  ]}
+                >
+                  <Mail size={20} color="#fff" />
+                  <Text style={styles.primaryButtonText}>Enviar Informe</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={handleFinalExit}
+                  style={[styles.outlineButton, { borderColor: theme.border }]}
+                >
+                  <Text
+                    style={[styles.outlineButtonText, { color: theme.text }]}
+                  >
+                    Finalizar sin enviar
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -246,8 +321,6 @@ const UserIcon = ({ size, color }: { size: number; color: string }) => (
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
-    paddingHorizontal: 24,
-    marginTop: 20,
     marginBottom: 24,
     alignItems: "flex-start",
   },
@@ -262,8 +335,17 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     gap: 12,
   },
-  emailHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
-  emailTitle: { fontSize: 16, fontWeight: "800" },
+  emailHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "transparent",
+  },
+  emailTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    backgroundColor: "transparent",
+  },
   emailInput: { borderWidth: 1, borderRadius: 12, padding: 12, fontSize: 16 },
   emailHint: { fontSize: 12, opacity: 0.5, fontWeight: "500" },
   section: { marginBottom: 32 },
@@ -343,4 +425,33 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   outlineButtonText: { fontSize: 18, fontWeight: "bold" },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    padding: 24,
+    paddingBottom: Platform.OS === "ios" ? 40 : 24,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "900",
+  },
+  modalBody: {
+    gap: 12,
+  },
+  modalText: {
+    fontSize: 16,
+    lineHeight: 24,
+    opacity: 0.7,
+  },
 });

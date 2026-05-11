@@ -27,7 +27,14 @@ export function FormStep({ step, onNext }: Props) {
 
   const handleNext = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    updateResponse(step.id, formData);
+    const trimmedData = Object.keys(formData).reduce(
+      (acc, key) => {
+        acc[key] = (formData[key] || "").trim();
+        return acc;
+      },
+      {} as Record<string, string>,
+    );
+    updateResponse(step.id, trimmedData);
     onNext(step.nextStep);
   };
 

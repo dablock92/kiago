@@ -47,14 +47,15 @@ const formatIncidentBody = (incident: Incident) => {
   `;
 
   incident.involvedParties.forEach((party, index) => {
+    const isMe = index === 0 && incident.flowId === "crash-report"; // Asumimos que el primero es el usuario
     html += `
       <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
-        <h3 style="margin-top: 0; color: ${party.type === "me" ? "#2563eb" : "#dc2626"};">
-          ${party.type === "me" ? "PARTE ASEGURADA (YO)" : `TERCERO INVOLUCRADO ${index}`}
+        <h3 style="margin-top: 0; color: ${isMe ? "#2563eb" : "#dc2626"};">
+          ${isMe ? "PARTE ASEGURADA (YO)" : `TERCERO INVOLUCRADO #${index}`}
         </h3>
         <table style="width: 100%;">
           <tr><td style="padding: 2px 0; width: 40%;"><strong>Conductor:</strong></td><td>${party.name || "---"} ${party.surname || ""}</td></tr>
-          <tr><td style="padding: 2px 0;"><strong>DNI:</strong></td><td>${party.idNumber || "---"}</td></tr>
+          <tr><td style="padding: 2px 0;"><strong>DNI:</strong></td><td>${party.dni || "---"}</td></tr>
           <tr><td style="padding: 2px 0;"><strong>Teléfono:</strong></td><td>${party.phone || "---"}</td></tr>
           <tr><td style="padding: 2px 0;"><strong>Vehículo / Patente:</strong></td><td><span style="background: #eee; padding: 2px 6px; border-radius: 4px; font-family: monospace;">${party.plate || "---"}</span></td></tr>
           <tr><td style="padding: 2px 0;"><strong>Compañía Seguro:</strong></td><td>${party.insuranceCompany || "---"}</td></tr>
@@ -86,7 +87,9 @@ const collectAttachments = (incident: Incident) => {
   incident.involvedParties.forEach((party) => {
     if (party.photos.dniFront) photos.push(party.photos.dniFront);
     if (party.photos.dniBack) photos.push(party.photos.dniBack);
-    if (party.photos.license) photos.push(party.photos.license);
+    if (party.photos.licenseFront) photos.push(party.photos.licenseFront);
+    if (party.photos.licenseBack) photos.push(party.photos.licenseBack);
+    if (party.photos.plate) photos.push(party.photos.plate);
     if (party.photos.damage) {
       party.photos.damage.forEach((uri) => photos.push(uri));
     }

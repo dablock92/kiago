@@ -6,7 +6,7 @@ import {
   Image,
   Dimensions,
 } from "react-native";
-import { Camera as CameraIcon, X, Check, Plus } from "lucide-react-native";
+import { X, Check, Plus } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 
 import { Text, View } from "@/components/Themed";

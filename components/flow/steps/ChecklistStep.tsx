@@ -1,4 +1,5 @@
 import DateTimePicker from "@react-native-community/datetimepicker";
+// REFRESH METRO 1
 import * as Haptics from "expo-haptics";
 import {
   AlertCircle,
@@ -12,6 +13,7 @@ import {
 } from "lucide-react-native";
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -44,23 +46,24 @@ const isImageUri = (val: any): boolean => {
 export function ChecklistStep({ step, onNext, partyId }: Props) {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
-  const { currentIncident, updateResponse, updateInvolvedParty } =
-    useIncidentStore();
+  const { currentIncident, updateInvolvedParty } = useIncidentStore();
 
   const [activeItem, setActiveItem] = useState<ChecklistItem | null>(null);
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [isPhotoMode, setIsPhotoMode] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [cameraSide, setCameraSide] = useState<"front" | "back" | null>(null);
-  const [useDniPhotoLocal, setUseDniPhotoLocal] = useState(false);
   const [tempDniPhotos, setTempDniPhotos] = useState<{
     front?: string;
     back?: string;
   }>({});
+  const [dniNumber, setDniNumber] = useState("");
+  const [tempLicensePhotos, setTempLicensePhotos] = useState<{
+    front?: string;
+    back?: string;
+  }>({});
+  const [tempPlatePhoto, setTempPlatePhoto] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
-
-  // Estado local para el texto de "Otro" motivo
-  const [otherReasonText, setOtherReasonText] = useState("");
 
   const currentParty = useMemo(
     () =>
@@ -76,6 +79,14 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
         front: currentParty.photos?.dniFront,
         back: currentParty.photos?.dniBack,
       });
+      setDniNumber(currentParty.dni || "");
+    } else if (activeItem?.id === "licencia_img" && currentParty) {
+      setTempLicensePhotos({
+        front: currentParty.photos?.licenseFront,
+        back: currentParty.photos?.licenseBack,
+      });
+    } else if (activeItem?.id === "dominio_patente" && currentParty) {
+      setTempPlatePhoto(currentParty.photos?.plate || "");
     }
   }, [activeItem, currentParty]);
 
@@ -98,21 +109,15 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
         aseguradora: currentParty.insuranceCompany,
         poliza_num: currentParty.policyNumber,
         vigencia_seguro: currentParty.insuranceValidity,
-        dominio_patente: currentParty.plate,
+        dominio_patente: currentParty.plate || currentParty.photos?.plate,
         nombre_titular: currentParty.ownerName,
         conductor_nombre: currentParty.name
           ? `${currentParty.name} ${currentParty.surname}`
           : undefined,
         conductor_tel: currentParty.phone,
-        dni_photos:
-          currentParty.photos?.dniFront && currentParty.photos?.dniBack
-            ? "AMBOS_LADOS"
-            : undefined,
-        licencia_img: currentParty.photos?.license,
-        fotos_danos:
-          (currentParty.photos?.damage?.length || 0) > 0
-            ? `${currentParty.photos?.damage?.length} fotos`
-            : undefined,
+        dni_photos: currentParty.photos?.dniFront || currentParty.dni,
+        licencia_img: currentParty.photos?.licenseFront || currentParty.photos?.licenseBack,
+        fotos_danos: currentParty.photos?.damage,
       } as Record<string, any>;
     }
     return currentIncident?.responses?.[step?.id] || {};
@@ -168,6 +173,15 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setActiveItem(item);
+
+    if (item.id === "dni_photos" && currentParty) {
+      setDniNumber(currentParty.dni || "");
+      setTempDniPhotos({
+        front: currentParty.photos.dniFront || "",
+        back: currentParty.photos.dniBack || "",
+      });
+    }
+
     const val = responses[item.id] || "";
     setFormData(item.fields ? {} : { [item.id]: String(val) });
     setIsPhotoMode(item.type === "photo" || isImageUri(responses[item.id]));
@@ -181,38 +195,57 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
     if (!finalValue) {
       if (activeItem.fields) {
         finalValue = activeItem.fields
-          .map((f) => formData[f.id])
+          .map((f) => (formData[f.id] || "").trim())
           .filter(Boolean)
           .join(" ");
       } else {
-        finalValue = formData[activeItem.id];
+        finalValue = (formData[activeItem.id] || "").trim();
       }
+    } else {
+      finalValue = finalValue.trim();
     }
 
     if (partyId) {
       const update: Partial<InvolvedParty> = {};
       const photosUpdate = { ...(currentParty?.photos || {}) };
 
-      if (activeItem.id === "conductor_nombre") {
-        update.name = formData["nombre"];
-        update.surname = formData["apellido"];
-        update.useDniPhoto = useDniPhotoLocal;
-      } else if (activeItem.id === "aseguradora")
-        update.insuranceCompany = finalValue;
-      else if (activeItem.id === "poliza_num") update.policyNumber = finalValue;
-      else if (activeItem.id === "vigencia_seguro")
-        update.insuranceValidity = finalValue;
-      else if (activeItem.id === "dominio_patente") update.plate = finalValue;
-      else if (activeItem.id === "nombre_titular")
-        update.ownerName = finalValue;
-      else if (activeItem.id === "conductor_tel") update.phone = finalValue;
-      else if (activeItem.id === "licencia_img")
-        photosUpdate.license = finalValue;
-      else if (activeItem.id === "dni_photos") {
-        photosUpdate.dniFront = tempDniPhotos.front;
-        photosUpdate.dniBack = tempDniPhotos.back;
-      } else if (activeItem.id === "fotos_danos") {
-        photosUpdate.damage = [...(photosUpdate.damage || []), finalValue!];
+      switch (activeItem.id) {
+        case "conductor_nombre":
+          update.name = formData["nombre"];
+          update.surname = formData["apellido"];
+          break;
+        case "aseguradora":
+          update.insuranceCompany = finalValue;
+          break;
+        case "poliza_num":
+          update.policyNumber = finalValue;
+          break;
+        case "vigencia_seguro":
+          update.insuranceValidity = finalValue;
+          break;
+        case "dominio_patente":
+          update.plate = finalValue;
+          photosUpdate.plate = tempPlatePhoto;
+          break;
+        case "nombre_titular":
+          update.ownerName = finalValue;
+          break;
+        case "conductor_tel":
+          update.phone = finalValue;
+          break;
+        case "licencia_img":
+          photosUpdate.licenseFront = tempLicensePhotos.front;
+          photosUpdate.licenseBack = tempLicensePhotos.back;
+          break;
+        case "dni_photos":
+          photosUpdate.dniFront = tempDniPhotos.front;
+          photosUpdate.dniBack = tempDniPhotos.back;
+          update.dni = (dniNumber || "").trim();
+          update.useDniPhoto = !!(tempDniPhotos.front || tempDniPhotos.back);
+          break;
+        case "fotos_danos":
+          photosUpdate.damage = [...(photosUpdate.damage || []), finalValue!];
+          break;
       }
 
       update.photos = photosUpdate;
@@ -220,6 +253,7 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
         (id) => id !== activeItem.id,
       );
       update.unavailableFields = newUnavailable;
+      console.log("Updating party", partyId, "with", update);
       updateInvolvedParty(partyId, update);
     }
     if (activeItem.id !== "fotos_danos" || !valueOverride) {
@@ -244,12 +278,21 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
       updateInvolvedParty(partyId!, { missingDataReason: "Otro" });
     } else {
       updateInvolvedParty(partyId!, { missingDataReason: reason });
-      setOtherReasonText("");
     }
   };
 
   const isSelected = (reason: string) =>
     currentParty?.missingDataReason?.startsWith(reason);
+
+  const handleNext = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (partyId && currentParty?.missingDataReason) {
+      updateInvolvedParty(partyId, {
+        missingDataReason: currentParty.missingDataReason.trim(),
+      });
+    }
+    onNext(step.nextStep);
+  };
 
   return (
     <View style={styles.container}>
@@ -262,8 +305,19 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
             const isUnavailable = currentParty?.unavailableFields?.includes(
               item.id,
             );
-            const isDone = !!responses[item.id] || isUnavailable;
             const value = responses[item.id];
+            const isDone =
+              isUnavailable ||
+              (item.id === "dni_photos" && currentParty
+                ? !!currentParty.dni || !!currentParty.photos?.dniFront
+                : item.id === "licencia_img" && currentParty
+                  ? !!currentParty.photos?.licenseFront ||
+                    !!currentParty.photos?.licenseBack
+                  : item.id === "dominio_patente" && currentParty
+                    ? !!currentParty.plate || !!currentParty.photos?.plate
+                    : Array.isArray(value)
+                      ? value.length > 0
+                      : !!value);
 
             if (item.type === "section") {
               return (
@@ -330,9 +384,94 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
                       <Text style={styles.hintText}>{item.hint}</Text>
                     )}
                     {isDone && !isUnavailable && (
-                      <Text numberOfLines={1} style={styles.itemValueText}>
-                        {value}
-                      </Text>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 6,
+                          marginTop: 4,
+                          backgroundColor: "transparent",
+                        }}
+                      >
+                        {item.type === "camera" || item.type === "photo" ? (
+                          Array.isArray(value) ? (
+                            <View
+                              style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                gap: 4,
+                                backgroundColor: "transparent",
+                              }}
+                            >
+                              {value.slice(0, 3).map((uri, i) => (
+                                <Image
+                                  key={i}
+                                  source={{ uri }}
+                                  style={{
+                                    width: 32,
+                                    height: 32,
+                                    borderRadius: 4,
+                                    borderWidth: 1,
+                                    borderColor: theme.border,
+                                  }}
+                                />
+                              ))}
+                              {value.length > 3 && (
+                                <Text
+                                  style={[
+                                    styles.itemValueText,
+                                    { fontSize: 12, opacity: 0.6 },
+                                  ]}
+                                >
+                                  +{value.length - 3} más
+                                </Text>
+                              )}
+                              {value.length === 0 && (
+                                <Text
+                                  style={[
+                                    styles.itemValueText,
+                                    { color: "#F59E0B" },
+                                  ]}
+                                >
+                                  Sin fotos aún
+                                </Text>
+                              )}
+                            </View>
+                          ) : (
+                            <View
+                              style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                gap: 6,
+                                backgroundColor: "transparent",
+                              }}
+                            >
+                              <Image
+                                source={{ uri: value }}
+                                style={{
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: 4,
+                                  borderWidth: 1,
+                                  borderColor: theme.border,
+                                }}
+                              />
+                              <Text style={styles.itemValueText}>
+                                {item.id === "dni_photos" && currentParty?.dni
+                                  ? currentParty.dni
+                                  : item.id === "dominio_patente" &&
+                                      currentParty?.plate
+                                    ? currentParty.plate
+                                    : "Foto capturada"}
+                              </Text>
+                            </View>
+                          )
+                        ) : (
+                          <Text numberOfLines={1} style={styles.itemValueText}>
+                            {value}
+                          </Text>
+                        )}
+                      </View>
                     )}
                   </View>
                 </View>
@@ -450,7 +589,7 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
       </ScrollView>
 
       <TouchableOpacity
-        onPress={() => onNext(step.nextStep)}
+        onPress={handleNext}
         disabled={!allCompleted}
         style={[
           styles.nextButton,
@@ -458,7 +597,7 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
         ]}
       >
         <Text style={styles.nextButtonText}>
-          {partyId ? "Cerrar Ficha" : "Continuar"}
+          {partyId ? "Guardar cambios" : "Continuar"}
         </Text>
       </TouchableOpacity>
 
@@ -509,7 +648,339 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
                 </View>
               ) : (
                 <View style={styles.inputWrapper}>
-                  {!isPhotoMode ? (
+                  {activeItem?.id === "dni_photos" ? (
+                    <View style={{ gap: 20 }}>
+                      <View style={{ gap: 8 }}>
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: "900",
+                            opacity: 0.5,
+                            textTransform: "uppercase",
+                            letterSpacing: 1,
+                          }}
+                        >
+                          Número de DNI
+                        </Text>
+                        <TextInput
+                          style={[
+                            styles.input,
+                            {
+                              backgroundColor: theme.card,
+                              borderColor: theme.border,
+                              minHeight: 60,
+                              borderRadius: 16,
+                              paddingHorizontal: 16,
+                              fontSize: 18,
+                              fontWeight: "600",
+                            },
+                          ]}
+                          placeholder="Ej: 12.345.678"
+                          placeholderTextColor={theme.tabIconDefault}
+                          value={dniNumber}
+                          onChangeText={setDniNumber}
+                          keyboardType="numeric"
+                        />
+                      </View>
+
+                      <View style={{ gap: 8 }}>
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: "900",
+                            opacity: 0.5,
+                            textTransform: "uppercase",
+                            letterSpacing: 1,
+                          }}
+                        >
+                          Fotos del documento
+                        </Text>
+                        <View style={{ flexDirection: "row", gap: 12 }}>
+                          {(["front", "back"] as const).map((side) => (
+                            <TouchableOpacity
+                              key={side}
+                              onPress={() => {
+                                setCameraSide(side);
+                                setShowCamera(true);
+                              }}
+                              style={{
+                                flex: 1,
+                                height: 120,
+                                borderRadius: 16,
+                                borderWidth: 2,
+                                borderColor: tempDniPhotos[side]
+                                  ? "#10B981"
+                                  : theme.border,
+                                borderStyle: tempDniPhotos[side]
+                                  ? "solid"
+                                  : "dashed",
+                                justifyContent: "center",
+                                alignItems: "center",
+                                overflow: "hidden",
+                                backgroundColor: theme.card,
+                              }}
+                            >
+                              {tempDniPhotos[side] ? (
+                                <Image
+                                  source={{ uri: tempDniPhotos[side] }}
+                                  style={{ width: "100%", height: "100%" }}
+                                />
+                              ) : (
+                                <>
+                                  <CameraIcon size={32} color={theme.tint} />
+                                  <Text
+                                    style={{
+                                      fontSize: 12,
+                                      fontWeight: "bold",
+                                      color: theme.tint,
+                                      marginTop: 4,
+                                    }}
+                                  >
+                                    {side === "front" ? "FRENTE" : "DORSO"}
+                                  </Text>
+                                </>
+                              )}
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </View>
+                    </View>
+                  ) : activeItem?.id === "dominio_patente" ? (
+                    <View style={{ gap: 20 }}>
+                      <View style={{ gap: 8 }}>
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: "900",
+                            opacity: 0.5,
+                            textTransform: "uppercase",
+                            letterSpacing: 1,
+                          }}
+                        >
+                          Patente / Dominio
+                        </Text>
+                        <TextInput
+                          style={[
+                            styles.input,
+                            {
+                              backgroundColor: theme.card,
+                              borderColor: theme.border,
+                              minHeight: 60,
+                              borderRadius: 16,
+                              paddingHorizontal: 16,
+                              fontSize: 18,
+                              fontWeight: "600",
+                              color: theme.text,
+                            },
+                          ]}
+                          placeholder="Ej: ABC 123 o AF 123 JK"
+                          placeholderTextColor={theme.tabIconDefault}
+                          value={formData["dominio_patente"]}
+                          onChangeText={(text) =>
+                            setFormData({ ...formData, dominio_patente: text })
+                          }
+                          autoCapitalize="characters"
+                        />
+                      </View>
+
+                      <View style={{ gap: 8 }}>
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: "900",
+                            opacity: 0.5,
+                            textTransform: "uppercase",
+                            letterSpacing: 1,
+                          }}
+                        >
+                          Foto del vehículo (opcional)
+                        </Text>
+                        <TouchableOpacity
+                          onPress={() => setShowCamera(true)}
+                          style={{
+                            height: 140,
+                            borderRadius: 16,
+                            borderWidth: 2,
+                            borderColor: tempPlatePhoto
+                              ? "#10B981"
+                              : theme.border,
+                            borderStyle: tempPlatePhoto ? "solid" : "dashed",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            backgroundColor: theme.card,
+                            overflow: "hidden",
+                          }}
+                        >
+                          {tempPlatePhoto ? (
+                            <Image
+                              source={{ uri: tempPlatePhoto }}
+                              style={{ width: "100%", height: "100%" }}
+                            />
+                          ) : (
+                            <>
+                              <CameraIcon size={32} color={theme.tint} />
+                              <Text
+                                style={{
+                                  fontSize: 12,
+                                  fontWeight: "bold",
+                                  color: theme.tint,
+                                  marginTop: 4,
+                                }}
+                              >
+                                TOMAR FOTO
+                              </Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ) : activeItem?.id === "licencia_img" ? (
+                    <View style={{ gap: 20 }}>
+                      <View style={{ gap: 8 }}>
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: "900",
+                            opacity: 0.5,
+                            textTransform: "uppercase",
+                            letterSpacing: 1,
+                          }}
+                        >
+                          Fotos de la Licencia
+                        </Text>
+                        <View style={{ flexDirection: "row", gap: 12 }}>
+                          {(["front", "back"] as const).map((side) => (
+                            <TouchableOpacity
+                              key={side}
+                              onPress={() => {
+                                setCameraSide(side);
+                                setShowCamera(true);
+                              }}
+                              style={{
+                                flex: 1,
+                                height: 120,
+                                borderRadius: 16,
+                                borderWidth: 2,
+                                borderColor: tempLicensePhotos[side]
+                                  ? "#10B981"
+                                  : theme.border,
+                                borderStyle: tempLicensePhotos[side]
+                                  ? "solid"
+                                  : "dashed",
+                                justifyContent: "center",
+                                alignItems: "center",
+                                overflow: "hidden",
+                                backgroundColor: theme.card,
+                              }}
+                            >
+                              {tempLicensePhotos[side] ? (
+                                <Image
+                                  source={{ uri: tempLicensePhotos[side] }}
+                                  style={{ width: "100%", height: "100%" }}
+                                />
+                              ) : (
+                                <>
+                                  <CameraIcon size={32} color={theme.tint} />
+                                  <Text
+                                    style={{
+                                      fontSize: 12,
+                                      fontWeight: "bold",
+                                      color: theme.tint,
+                                      marginTop: 4,
+                                    }}
+                                  >
+                                    {side === "front" ? "FRENTE" : "DORSO"}
+                                  </Text>
+                                </>
+                              )}
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </View>
+                    </View>
+                  ) : activeItem?.id === "fotos_danos" ? (
+                    <View style={{ gap: 16 }}>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          flexWrap: "wrap",
+                          gap: 12,
+                        }}
+                      >
+                        {currentParty?.photos?.damage?.map((uri, idx) => (
+                          <View
+                            key={idx}
+                            style={{
+                              width: 100,
+                              height: 100,
+                              borderRadius: 12,
+                              overflow: "hidden",
+                              position: "relative",
+                              borderWidth: 1,
+                              borderColor: theme.border,
+                            }}
+                          >
+                            <Image
+                              source={{ uri }}
+                              style={{ width: "100%", height: "100%" }}
+                            />
+                            <TouchableOpacity
+                              onPress={() => {
+                                Haptics.impactAsync(
+                                  Haptics.ImpactFeedbackStyle.Medium,
+                                );
+                                const newDamage = (
+                                  currentParty.photos.damage || []
+                                ).filter((_, i) => i !== idx);
+                                updateInvolvedParty(partyId!, {
+                                  photos: {
+                                    ...currentParty.photos,
+                                    damage: newDamage,
+                                  },
+                                });
+                              }}
+                              style={{
+                                position: "absolute",
+                                top: 6,
+                                right: 6,
+                                backgroundColor: "rgba(0,0,0,0.6)",
+                                borderRadius: 12,
+                                padding: 4,
+                              }}
+                            >
+                              <X size={14} color="white" />
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+                        <TouchableOpacity
+                          onPress={() => setShowCamera(true)}
+                          style={{
+                            width: 100,
+                            height: 100,
+                            borderRadius: 12,
+                            borderStyle: "dashed",
+                            borderWidth: 2,
+                            borderColor: theme.tint,
+                            justifyContent: "center",
+                            alignItems: "center",
+                            backgroundColor: theme.tint + "10",
+                          }}
+                        >
+                          <CameraIcon size={32} color={theme.tint} />
+                          <Text
+                            style={{
+                              fontSize: 10,
+                              color: theme.tint,
+                              marginTop: 4,
+                              fontWeight: "bold",
+                            }}
+                          >
+                            AÑADIR
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ) : !isPhotoMode ? (
                     activeItem?.type === "date" ? (
                       <TouchableOpacity
                         onPress={() => setShowDatePicker(true)}
@@ -554,7 +1025,10 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
                         placeholderTextColor={theme.tabIconDefault}
                         value={formData[activeItem?.id || ""]}
                         onChangeText={(text) =>
-                          setFormData({ [activeItem?.id || ""]: text })
+                          setFormData({
+                            ...formData,
+                            [activeItem?.id || ""]: text,
+                          })
                         }
                         autoFocus
                       />
@@ -578,25 +1052,27 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
               )}
 
               <View style={{ gap: 12, marginTop: 10 }}>
-                {activeItem?.required && (
-                  <TouchableOpacity
-                    onPress={() => handleToggleUnavailable(activeItem.id)}
-                    style={[
-                      styles.unavailableAction,
-                      { borderColor: "transparent" },
-                    ]}
-                  >
-                    <ThumbsDown size={20} color={theme.tint} />
-                    <Text
+                {activeItem?.required &&
+                  activeItem?.id !== "fotos_danos" &&
+                  activeItem?.id !== "licencia_img" && (
+                    <TouchableOpacity
+                      onPress={() => handleToggleUnavailable(activeItem.id)}
                       style={[
-                        styles.unavailableActionText,
-                        { color: theme.tint, opacity: 0.5 },
+                        styles.unavailableAction,
+                        { borderColor: "transparent" },
                       ]}
                     >
-                      No logré obtenerlo
-                    </Text>
-                  </TouchableOpacity>
-                )}
+                      <ThumbsDown size={20} color={theme.tint} />
+                      <Text
+                        style={[
+                          styles.unavailableActionText,
+                          { color: theme.tint, opacity: 0.5 },
+                        ]}
+                      >
+                        No logré obtenerlo
+                      </Text>
+                    </TouchableOpacity>
+                  )}
 
                 <TouchableOpacity
                   onPress={() => handleSaveItem()}
@@ -623,13 +1099,50 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
 
       <Modal visible={showCamera} animationType="fade" transparent={false}>
         <CameraView
+          isDocument={
+            activeItem?.id === "dni_photos" || activeItem?.id === "licencia_img"
+          }
           onClose={() => {
             setShowCamera(false);
             setCameraSide(null);
           }}
           onCapture={(uri) => {
             if (activeItem?.id === "dni_photos") {
-              setTempDniPhotos((prev) => ({ ...prev, [cameraSide!]: uri }));
+              const newPhotos = {
+                ...tempDniPhotos,
+                [cameraSide!]: uri,
+              };
+              setTempDniPhotos(newPhotos);
+              updateInvolvedParty(partyId!, {
+                photos: {
+                  ...currentParty?.photos,
+                  dniFront: newPhotos.front,
+                  dniBack: newPhotos.back,
+                },
+              });
+              setShowCamera(false);
+            } else if (activeItem?.id === "licencia_img") {
+              const newPhotos = {
+                ...tempLicensePhotos,
+                [cameraSide!]: uri,
+              };
+              setTempLicensePhotos(newPhotos);
+              updateInvolvedParty(partyId!, {
+                photos: {
+                  ...currentParty?.photos,
+                  licenseFront: newPhotos.front,
+                  licenseBack: newPhotos.back,
+                },
+              });
+              setShowCamera(false);
+            } else if (activeItem?.id === "dominio_patente") {
+              setTempPlatePhoto(uri);
+              updateInvolvedParty(partyId!, {
+                photos: {
+                  ...currentParty?.photos,
+                  plate: uri,
+                },
+              });
               setShowCamera(false);
             } else {
               handleSaveItem(uri);

@@ -1,31 +1,32 @@
-import React, { useState } from "react";
+import * as Haptics from "expo-haptics";
+// REFRESH METRO 1
 import {
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Modal,
-  Platform,
-} from "react-native";
-import {
+  AlertCircle,
+  Camera,
+  CheckCircle2,
+  ChevronRight,
+  FileText,
   Plus,
   User,
-  ChevronRight,
-  CheckCircle2,
-  Circle,
   X,
-  Camera,
-  FileText,
 } from "lucide-react-native";
-import * as Haptics from "expo-haptics";
+import React, { useState } from "react";
+import {
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+} from "react-native";
 
 import { Text, View } from "@/components/Themed";
-import { Step } from "../../../engine/types";
+import { useColorScheme } from "@/components/useColorScheme";
+import Colors from "@/constants/Colors";
+import { ChecklistItem, Step } from "../../../engine/types";
 import {
   InvolvedParty,
   useIncidentStore,
 } from "../../../store/useIncidentStore";
-import Colors from "@/constants/Colors";
-import { useColorScheme } from "@/components/useColorScheme";
 import { ChecklistStep } from "./ChecklistStep";
 
 interface Props {
@@ -54,18 +55,58 @@ export function InvolvedManagementStep({ step, onNext }: Props) {
   };
 
   const getPartyStatus = (party: InvolvedParty) => {
-    const photoCount = Object.values(party.photos).filter((p) => !!p).length;
+    const requiredItems =
+      (step.checklistItems?.filter(
+        (i) => typeof i !== "string" && i.required,
+      ) as ChecklistItem[]) || [];
 
-    const hasBasicInfo = !!(party.name && party.policyNumber);
-    const hasRequiredPhotos = party.useDniPhoto
-      ? !!(party.photos.dniFront && party.photos.dniBack)
-      : true;
+    const unavailableFields = party.unavailableFields || [];
+    const hasAnyData = !!(
+      party.name ||
+      party.dni ||
+      party.policyNumber ||
+      party.plate ||
+      party.insuranceCompany ||
+      (party.photos.damage?.length || 0) > 0 ||
+      party.photos.dniFront ||
+      party.photos.license
+    );
 
-    const isComplete =
-      hasBasicInfo &&
-      hasRequiredPhotos &&
-      (party.photos.damage?.length || 0) > 0;
-    return { photoCount, isComplete };
+    if (!hasAnyData) return "empty";
+
+    const allRequiredCovered = requiredItems.every((item) => {
+      if (item.id === "aseguradora")
+        return !!party.insuranceCompany || unavailableFields.includes(item.id);
+      if (item.id === "poliza_num")
+        return !!party.policyNumber || unavailableFields.includes(item.id);
+      if (item.id === "dominio_patente")
+        return !!party.plate || unavailableFields.includes(item.id);
+      if (item.id === "dni_photos")
+        return (
+          !!party.dni ||
+          !!party.photos.dniFront ||
+          unavailableFields.includes(item.id)
+        );
+      if (item.id === "licencia_img")
+        return !!party.photos.license || unavailableFields.includes(item.id);
+      if (item.id === "fotos_danos")
+        return (
+          (party.photos.damage?.length || 0) > 0 ||
+          unavailableFields.includes(item.id)
+        );
+      if (item.id === "conductor_nombre")
+        return !!party.name || unavailableFields.includes(item.id);
+      return (
+        !!(party as any).responses?.[item.id] ||
+        unavailableFields.includes(item.id)
+      );
+    });
+
+    if (allRequiredCovered) {
+      return unavailableFields.length > 0 ? "partial" : "complete";
+    }
+
+    return "in_progress";
   };
 
   const isOnlyTwo =
@@ -76,7 +117,17 @@ export function InvolvedManagementStep({ step, onNext }: Props) {
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.list}>
           {parties.map((party, index) => {
-            const { photoCount, isComplete } = getPartyStatus(party);
+            const status = getPartyStatus(party);
+            const isComplete = status === "complete";
+            const isPartial = status === "partial";
+            const isEmpty = status === "empty";
+
+            const borderColor = isComplete
+              ? "#10B981"
+              : isEmpty
+                ? "#8B5CF6"
+                : "#F59E0B"; // In progress or Partial
+
             return (
               <TouchableOpacity
                 key={party.id}
@@ -85,7 +136,9 @@ export function InvolvedManagementStep({ step, onNext }: Props) {
                   styles.partyCard,
                   {
                     backgroundColor: "transparent",
-                    borderColor: isComplete ? "#10B981" : theme.border,
+                    borderColor: borderColor,
+                    borderStyle: isEmpty ? "dashed" : "solid",
+                    opacity: 1,
                   },
                 ]}
               >
@@ -96,26 +149,63 @@ export function InvolvedManagementStep({ step, onNext }: Props) {
                       {
                         backgroundColor: isComplete
                           ? "#10B98120"
-                          : theme.tint + "20",
+                          : isEmpty
+                            ? "#8B5CF620"
+                            : "#F59E0B20",
                       },
                     ]}
                   >
                     {isComplete ? (
                       <CheckCircle2 size={24} color="#10B981" />
+                    ) : isEmpty ? (
+                      <User size={24} color="#8B5CF6" />
                     ) : (
-                      <User size={24} color={theme.tint} />
+                      <AlertCircle size={24} color="#F59E0B" />
                     )}
                   </View>
                   <View style={styles.details}>
-                    <Text style={styles.partyTitle}>
-                      {isOnlyTwo ? "Involucrado" : `Involucrado #${index + 1}`}
-                    </Text>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 6,
+                        backgroundColor: "transparent",
+                      }}
+                    >
+                      <Text style={styles.partyTitle}>
+                        {isOnlyTwo
+                          ? "Involucrado"
+                          : `Involucrado #${index + 1}`}
+                      </Text>
+                      {isPartial && (
+                        <View
+                          style={{
+                            backgroundColor: "#F59E0B20",
+                            paddingHorizontal: 6,
+                            paddingVertical: 2,
+                            borderRadius: 6,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 8,
+                              color: "#F59E0B",
+                              fontWeight: "bold",
+                            }}
+                          >
+                            FALTAN ALGUNOS DATOS
+                          </Text>
+                        </View>
+                      )}
+                    </View>
                     <Text style={styles.partyName} numberOfLines={1}>
                       {party.useDniPhoto
                         ? "Identidad por foto 📸"
                         : party.name
                           ? `${party.name} ${party.surname}`
-                          : "Pendiente de datos"}
+                          : isEmpty
+                            ? "Sin completar"
+                            : "Sin nombre ni foto DNI"}
                     </Text>
                     <View style={styles.badgeRow}>
                       <View
@@ -132,18 +222,33 @@ export function InvolvedManagementStep({ step, onNext }: Props) {
                           fotos
                         </Text>
                       </View>
-                      {party.policyNumber && (
+                      {(party.policyNumber ||
+                        party.unavailableFields?.includes("poliza_num")) && (
                         <View
                           style={[
                             styles.badge,
-                            { backgroundColor: "#10B98120" },
+                            {
+                              backgroundColor: party.policyNumber
+                                ? "#10B98120"
+                                : "#F59E0B20",
+                            },
                           ]}
                         >
-                          <FileText size={12} color="#10B981" />
+                          <FileText
+                            size={12}
+                            color={party.policyNumber ? "#10B981" : "#F59E0B"}
+                          />
                           <Text
-                            style={[styles.badgeText, { color: "#10B981" }]}
+                            style={[
+                              styles.badgeText,
+                              {
+                                color: party.policyNumber
+                                  ? "#10B981"
+                                  : "#F59E0B",
+                              },
+                            ]}
                           >
-                            Póliza cargada
+                            {party.policyNumber ? "Póliza" : "Póliza s/d"}
                           </Text>
                         </View>
                       )}
@@ -193,8 +298,8 @@ export function InvolvedManagementStep({ step, onNext }: Props) {
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>
               {isOnlyTwo
-                ? "Ficha del involucrado"
-                : `Ficha del involucrado: ${selectedIndex + 1}`}
+                ? "Datos del involucrado"
+                : `Datos del involucrado: ${selectedIndex + 1}`}
             </Text>
             <TouchableOpacity
               onPress={() => setSelectedPartyId(null)}

@@ -1,29 +1,19 @@
-import React, { useState, useRef, useEffect } from "react";
-import {
-  StyleSheet,
-  TouchableOpacity,
-  View as RNView,
-  Dimensions,
-} from "react-native";
 import { CameraView as ExpoCamera, useCameraPermissions } from "expo-camera";
-import {
-  X,
-  Zap,
-  ZapOff,
-  RotateCcw,
-  Camera as CameraIcon,
-} from "lucide-react-native";
+import { RotateCcw, X, Zap, ZapOff } from "lucide-react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { View as RNView, StyleSheet, TouchableOpacity } from "react-native";
 
 import { Text, View } from "@/components/Themed";
-import Colors from "@/constants/Colors";
 import { useColorScheme } from "@/components/useColorScheme";
+import Colors from "@/constants/Colors";
 
 interface Props {
   onCapture: (uri: string) => void;
   onClose: () => void;
+  isDocument?: boolean;
 }
 
-export function CameraView({ onCapture, onClose }: Props) {
+export function CameraView({ onCapture, onClose, isDocument = false }: Props) {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
   const [permission, requestPermission] = useCameraPermissions();
@@ -35,7 +25,7 @@ export function CameraView({ onCapture, onClose }: Props) {
     if (!permission) {
       requestPermission();
     }
-  }, [permission]);
+  }, [permission, requestPermission]);
 
   if (!permission) {
     return (
@@ -49,7 +39,7 @@ export function CameraView({ onCapture, onClose }: Props) {
     return (
       <View style={styles.container}>
         <Text style={styles.message}>
-          Necesitamos acceso a la cámara para capturar los documentos.
+          Necesitamos acceso a la cámara para capturar las fotos.
         </Text>
         <TouchableOpacity
           onPress={requestPermission}
@@ -102,12 +92,14 @@ export function CameraView({ onCapture, onClose }: Props) {
         </RNView>
 
         {/* Guide Frame */}
-        <RNView style={styles.guideContainer}>
-          <RNView style={styles.guideFrame} />
-          <Text style={styles.guideText}>
-            Ubicar documento dentro del cuadro
-          </Text>
-        </RNView>
+        {isDocument && (
+          <RNView style={styles.guideContainer}>
+            <RNView style={styles.guideFrame} />
+            <Text style={styles.guideText}>
+              Ubicar documento dentro del cuadro
+            </Text>
+          </RNView>
+        )}
 
         {/* Footer Controls */}
         <RNView style={styles.footer}>

@@ -15,10 +15,12 @@ export interface InvolvedParty {
 
   photos: {
     insurance?: string;
-    license?: string;
+    licenseFront?: string;
+    licenseBack?: string;
     car?: string;
     dniFront?: string;
     dniBack?: string;
+    plate?: string;
     damage?: string[]; // Array para múltiples fotos del daño
   };
   useDniPhoto?: boolean;
@@ -26,9 +28,9 @@ export interface InvolvedParty {
   missingDataReason?: string; // Explicación de por qué faltan datos
 }
 
-interface Incident {
+export interface Incident {
   id: string;
-  type: string;
+  flowId: string;
   responses: Record<string, any>;
   involvedParties: InvolvedParty[];
   createdAt: string;
@@ -36,7 +38,7 @@ interface Incident {
 
 interface IncidentState {
   currentIncident: Incident | null;
-  startIncident: (type: string) => void;
+  startIncident: (flowId: string) => void;
   updateResponse: (stepId: string, response: any) => void;
   addInvolvedParty: () => string;
   updateInvolvedParty: (
@@ -52,11 +54,11 @@ export const useIncidentStore = create<IncidentState>((set) => ({
 
   completeIncident: () => set({ currentIncident: null }),
 
-  startIncident: (type) =>
+  startIncident: (flowId) =>
     set({
       currentIncident: {
         id: Math.random().toString(36).substr(2, 9),
-        type,
+        flowId,
         responses: {},
         involvedParties: [],
         createdAt: new Date().toISOString(),
