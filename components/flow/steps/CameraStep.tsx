@@ -1,18 +1,18 @@
+import * as Haptics from "expo-haptics";
+import { Check, Plus, X } from "lucide-react-native";
 import React, { useState } from "react";
 import {
+  Dimensions,
+  Image,
+  ScrollView,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
-  Image,
-  Dimensions,
 } from "react-native";
-import { X, Check, Plus } from "lucide-react-native";
-import * as Haptics from "expo-haptics";
 
 import { Text, View } from "@/components/Themed";
-import { Step } from "../../../engine/types";
-import Colors from "@/constants/Colors";
 import { useColorScheme } from "@/components/useColorScheme";
+import Colors from "@/constants/Colors";
+import { Step } from "../../../engine/types";
 import { useIncidentStore } from "../../../store/useIncidentStore";
 import { CameraView } from "../CameraView";
 
@@ -93,7 +93,7 @@ export function CameraStep({ step, onNext }: Props) {
         ]}
       >
         <Check size={24} color="#fff" />
-        <Text style={styles.nextButtonText}>Finalizar Registro</Text>
+        <Text style={styles.nextButtonText}>Guardar fotos</Text>
       </TouchableOpacity>
     </View>
   );

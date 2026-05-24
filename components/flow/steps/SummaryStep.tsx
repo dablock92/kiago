@@ -5,6 +5,7 @@ import {
   Camera,
   Car,
   CheckCircle2,
+  Download,
   FileText,
   Mail,
   Save,
@@ -26,7 +27,10 @@ import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 import { Step } from "../../../engine/types";
 import { saveIncidentToDb } from "../../../services/databaseService";
-import { exportIncidentToMail } from "../../../services/exportService";
+import {
+  exportIncidentToMail,
+  exportIncidentToPdf,
+} from "../../../services/exportService";
 import { useIncidentStore } from "../../../store/useIncidentStore";
 import { useSettingsStore } from "../../../store/useSettingsStore";
 
@@ -64,6 +68,16 @@ export function SummaryStep({ step }: Props) {
       setRecipientEmail(settings.insuranceEmail);
     }
   }, [settings.insuranceEmail]);
+
+  const handleDownloadPdf = async () => {
+    if (!currentIncident) return;
+    setIsExporting(true);
+    try {
+      await exportIncidentToPdf(currentIncident);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const handleSendMail = async () => {
     if (!currentIncident) return;
@@ -291,6 +305,26 @@ export function SummaryStep({ step }: Props) {
                 >
                   <Mail size={20} color="#fff" />
                   <Text style={styles.primaryButtonText}>Enviar Informe</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={handleDownloadPdf}
+                  disabled={isExporting}
+                  style={[
+                    styles.outlineButton,
+                    {
+                      borderColor: theme.tint,
+                      borderWidth: 1.5,
+                      opacity: isExporting ? 0.5 : 1,
+                    },
+                  ]}
+                >
+                  <Download size={20} color={theme.tint} />
+                  <Text
+                    style={[styles.outlineButtonText, { color: theme.tint }]}
+                  >
+                    Descargar Reporte PDF
+                  </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity

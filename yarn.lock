@@ -3763,6 +3763,11 @@ expo-modules-core@3.0.30:
   dependencies:
     invariant "^2.2.4"
 
+expo-print@^55.0.14:
+  version "55.0.14"
+  resolved "https://registry.yarnpkg.com/expo-print/-/expo-print-55.0.14.tgz#02d597aaa6111eb98cd3d1859c67be5ee5acc1ec"
+  integrity sha512-GNznEjRHUjJj3GRRElHff3t2xtarO1zakEBdlxuYBoY0G/Ae59XaBQdlpzTjhceAdASlqsrnugHlQz6bsZRDnw==
+
 expo-router@~6.0.23:
   version "6.0.23"
   resolved "https://registry.yarnpkg.com/expo-router/-/expo-router-6.0.23.tgz#480fbcb4901fd692f9d11762f33894280dcbd75a"
