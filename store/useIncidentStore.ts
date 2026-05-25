@@ -12,6 +12,7 @@ export interface InvolvedParty {
   policyNumber?: string;
   ownerName?: string;
   insuranceValidity?: string;
+  email?: string;
 
   photos: {
     insurance?: string;

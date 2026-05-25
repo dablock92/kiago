@@ -2,7 +2,6 @@ import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import {
   AtSign,
-  Camera,
   Car,
   CheckCircle2,
   FileText,
@@ -12,6 +11,7 @@ import {
 } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import {
+  Image,
   Alert,
   Modal,
   Platform,
@@ -19,9 +19,10 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
+  View,
 } from "react-native";
 
-import { Text, View } from "@/components/Themed";
+import { Text } from "@/components/Themed";
 import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 import { Step } from "../../../engine/types";
@@ -29,6 +30,7 @@ import { saveIncidentToDb } from "../../../services/databaseService";
 import { exportIncidentToMail } from "../../../services/exportService";
 import { useIncidentStore } from "../../../store/useIncidentStore";
 import { useSettingsStore } from "../../../store/useSettingsStore";
+import { flows } from "@/data/flows";
 
 interface Props {
   step: Step;
@@ -46,6 +48,7 @@ const labelMap: Record<string, string> = {
   nombre_titular: "Titular del vehículo",
   conductor_nombre: "Nombre del Conductor",
   conductor_tel: "Teléfono",
+  conductor_email: "Correo del Conductor",
 };
 
 export function SummaryStep({ step }: Props) {
@@ -55,15 +58,22 @@ export function SummaryStep({ step }: Props) {
   const { currentIncident, completeIncident } = useIncidentStore();
   const { settings } = useSettingsStore();
 
+  const responses = currentIncident?.responses || {};
+  const isSpectator = responses["rol"] === "Soy un espectador";
+  const flow = (flows || []).find((f) => f.id === currentIncident?.flowId);
+
   const [isExporting, setIsExporting] = useState(false);
   const [recipientEmail, setRecipientEmail] = useState("");
   const [showSendModal, setShowSendModal] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (settings.insuranceEmail) {
+    if (!isSpectator && settings.insuranceEmail) {
       setRecipientEmail(settings.insuranceEmail);
+    } else if (isSpectator) {
+      setRecipientEmail("");
     }
-  }, [settings.insuranceEmail]);
+  }, [settings.insuranceEmail, isSpectator]);
 
   const handleSendMail = async () => {
     if (!currentIncident) return;
@@ -101,14 +111,13 @@ export function SummaryStep({ step }: Props) {
   };
 
   const parties = currentIncident?.involvedParties || [];
-  const responses = currentIncident?.responses || {};
 
   const formatLabel = (key: string) =>
     labelMap[key] ||
     key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -132,11 +141,112 @@ export function SummaryStep({ step }: Props) {
             ]}
           >
             {Object.entries(responses).map(([key, value]) => {
-              if (typeof value === "object") return null;
+              if (typeof value === "object" && value !== null) {
+                const matchingStep = flow?.steps.find((s) => s.id === key);
+                if (matchingStep && matchingStep.type === "checklist") {
+                  return (
+                    <View
+                      key={key}
+                      style={{
+                        marginTop: 10,
+                        borderTopWidth: 1,
+                        borderTopColor: theme.border + "40",
+                        paddingTop: 10,
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.infoLabel,
+                          {
+                            fontWeight: "bold",
+                            marginBottom: 6,
+                            color: theme.tint,
+                          },
+                        ]}
+                      >
+                        {matchingStep.text}:
+                      </Text>
+                      {Object.entries(value).map(([itemId, itemValue]) => {
+                        const checklistItem = matchingStep.checklistItems?.find(
+                          (item) =>
+                            typeof item !== "string" && item.id === itemId,
+                        );
+                        const label =
+                          typeof checklistItem === "object" && checklistItem
+                            ? checklistItem.label
+                            : itemId;
+
+                        return (
+                          <View
+                            key={itemId}
+                            style={[
+                              styles.infoRow,
+                              { paddingLeft: 10, paddingVertical: 4 },
+                            ]}
+                          >
+                            <Text style={styles.infoLabel}>• {label}:</Text>
+                            {Array.isArray(itemValue) ? (
+                              <View style={styles.thumbnailGrid}>
+                                {itemValue.map((uri, idx) => (
+                                  <TouchableOpacity
+                                    key={idx}
+                                    onPress={() => setPreviewImage(uri)}
+                                  >
+                                    <Image
+                                      source={{ uri }}
+                                      style={[
+                                        styles.thumbnail,
+                                        { borderColor: theme.border },
+                                      ]}
+                                    />
+                                  </TouchableOpacity>
+                                ))}
+                              </View>
+                            ) : String(itemValue).startsWith("file://") ? (
+                              <TouchableOpacity
+                                onPress={() =>
+                                  setPreviewImage(String(itemValue))
+                                }
+                              >
+                                <Image
+                                  source={{ uri: String(itemValue) }}
+                                  style={[
+                                    styles.thumbnail,
+                                    { borderColor: theme.border },
+                                  ]}
+                                />
+                              </TouchableOpacity>
+                            ) : (
+                              <Text style={styles.infoValue}>
+                                {String(itemValue)}
+                              </Text>
+                            )}
+                          </View>
+                        );
+                      })}
+                    </View>
+                  );
+                }
+                return null;
+              }
               return (
                 <View key={key} style={styles.infoRow}>
                   <Text style={styles.infoLabel}>{formatLabel(key)}:</Text>
-                  <Text style={styles.infoValue}>{String(value)}</Text>
+                  {String(value).startsWith("file://") ? (
+                    <TouchableOpacity
+                      onPress={() => setPreviewImage(String(value))}
+                    >
+                      <Image
+                        source={{ uri: String(value) }}
+                        style={[
+                          styles.thumbnail,
+                          { borderColor: theme.border },
+                        ]}
+                      />
+                    </TouchableOpacity>
+                  ) : (
+                    <Text style={styles.infoValue}>{String(value)}</Text>
+                  )}
                 </View>
               );
             })}
@@ -168,32 +278,189 @@ export function SummaryStep({ step }: Props) {
                 <View style={styles.cardBody}>
                   <View style={styles.infoRow}>
                     <Text style={styles.infoLabel}>Compañía:</Text>
-                    <Text style={styles.infoValue}>
-                      {party.insuranceCompany || "No cargado"}
-                    </Text>
+                    {party.insuranceCompany ? (
+                      party.insuranceCompany.startsWith("file://") ? (
+                        <TouchableOpacity
+                          onPress={() =>
+                            setPreviewImage(party.insuranceCompany || null)
+                          }
+                        >
+                          <Image
+                            source={{ uri: party.insuranceCompany }}
+                            style={[
+                              styles.thumbnail,
+                              { borderColor: theme.border },
+                            ]}
+                          />
+                        </TouchableOpacity>
+                      ) : (
+                        <Text style={styles.infoValue}>
+                          {party.insuranceCompany}
+                        </Text>
+                      )
+                    ) : (
+                      <Text style={styles.infoValue}>No cargado</Text>
+                    )}
                   </View>
                   <View style={styles.infoRow}>
                     <Text style={styles.infoLabel}>Póliza:</Text>
-                    <Text style={styles.infoValue}>
-                      {party.policyNumber || "-"}
-                    </Text>
+                    {party.policyNumber ? (
+                      party.policyNumber.startsWith("file://") ? (
+                        <TouchableOpacity
+                          onPress={() =>
+                            setPreviewImage(party.policyNumber || null)
+                          }
+                        >
+                          <Image
+                            source={{ uri: party.policyNumber }}
+                            style={[
+                              styles.thumbnail,
+                              { borderColor: theme.border },
+                            ]}
+                          />
+                        </TouchableOpacity>
+                      ) : (
+                        <Text style={styles.infoValue}>
+                          {party.policyNumber}
+                        </Text>
+                      )
+                    ) : (
+                      <Text style={styles.infoValue}>-</Text>
+                    )}
                   </View>
                   <View style={styles.infoRow}>
                     <Text style={styles.infoLabel}>Patente:</Text>
-                    <Text style={styles.infoValue}>{party.plate || "-"}</Text>
+                    {party.plate ? (
+                      party.plate.startsWith("file://") ? (
+                        <TouchableOpacity
+                          onPress={() => setPreviewImage(party.plate || null)}
+                        >
+                          <Image
+                            source={{ uri: party.plate }}
+                            style={[
+                              styles.thumbnail,
+                              { borderColor: theme.border },
+                            ]}
+                          />
+                        </TouchableOpacity>
+                      ) : (
+                        <Text style={styles.infoValue}>{party.plate}</Text>
+                      )
+                    ) : (
+                      <Text style={styles.infoValue}>-</Text>
+                    )}
                   </View>
-                  <View style={styles.photoSummary}>
-                    <Camera size={12} color={theme.text} opacity={0.5} />
-                    <Text style={styles.photoCount}>
-                      {(party.photos.damage?.length || 0) +
-                        (party.photos.dniFront ? 1 : 0) +
-                        (party.photos.dniBack ? 1 : 0) +
-                        (party.photos.licenseFront ? 1 : 0) +
-                        (party.photos.licenseBack ? 1 : 0) +
-                        (party.photos.plate ? 1 : 0)}{" "}
-                      fotos de evidencia
-                    </Text>
-                  </View>
+                  {party.ownerName && (
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>Titular:</Text>
+                      {party.ownerName.startsWith("file://") ? (
+                        <TouchableOpacity
+                          onPress={() =>
+                            setPreviewImage(party.ownerName || null)
+                          }
+                        >
+                          <Image
+                            source={{ uri: party.ownerName }}
+                            style={[
+                              styles.thumbnail,
+                              { borderColor: theme.border },
+                            ]}
+                          />
+                        </TouchableOpacity>
+                      ) : (
+                        <Text style={styles.infoValue}>{party.ownerName}</Text>
+                      )}
+                    </View>
+                  )}
+                  {party.email && (
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>Email:</Text>
+                      <Text style={styles.infoValue}>{party.email}</Text>
+                    </View>
+                  )}
+
+                  {/* Grid de evidencia fotográfica para DNI, licencia y daños */}
+                  {(() => {
+                    const docPhotos: { uri: string; label: string }[] = [];
+                    if (party.photos?.dniFront)
+                      docPhotos.push({
+                        uri: party.photos.dniFront,
+                        label: "DNI Frente",
+                      });
+                    if (party.photos?.dniBack)
+                      docPhotos.push({
+                        uri: party.photos.dniBack,
+                        label: "DNI Dorso",
+                      });
+                    if (party.photos?.licenseFront)
+                      docPhotos.push({
+                        uri: party.photos.licenseFront,
+                        label: "Lic. Frente",
+                      });
+                    if (party.photos?.licenseBack)
+                      docPhotos.push({
+                        uri: party.photos.licenseBack,
+                        label: "Lic. Dorso",
+                      });
+                    if (party.photos?.damage) {
+                      party.photos.damage.forEach((uri, i) => {
+                        docPhotos.push({ uri, label: `Daño ${i + 1}` });
+                      });
+                    }
+
+                    if (docPhotos.length === 0) return null;
+
+                    return (
+                      <View
+                        style={{
+                          marginTop: 12,
+                          borderTopWidth: 1,
+                          borderTopColor: theme.border + "30",
+                          paddingTop: 12,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            fontWeight: "bold",
+                            color: theme.tint,
+                            marginBottom: 8,
+                          }}
+                        >
+                          Evidencia fotográfica cargada:
+                        </Text>
+                        <View style={styles.thumbnailGrid}>
+                          {docPhotos.map((item, i) => (
+                            <View
+                              key={i}
+                              style={{ alignItems: "center", gap: 4 }}
+                            >
+                              <TouchableOpacity
+                                onPress={() => setPreviewImage(item.uri)}
+                              >
+                                <Image
+                                  source={{ uri: item.uri }}
+                                  style={[
+                                    styles.thumbnail,
+                                    { borderColor: theme.border },
+                                  ]}
+                                />
+                              </TouchableOpacity>
+                              <Text
+                                style={{
+                                  fontSize: 9,
+                                  opacity: 0.6,
+                                  color: theme.text,
+                                }}
+                              >
+                                {item.label}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    );
+                  })()}
                 </View>
               </View>
             ))}
@@ -232,8 +499,9 @@ export function SummaryStep({ step }: Props) {
 
             <View style={styles.modalBody}>
               <Text style={[styles.modalText, { color: theme.text }]}>
-                Los datos ya están seguros en tu dispositivo. ¿Deseás enviar el
-                informe ahora a tu aseguradora?
+                {isSpectator
+                  ? "Los datos ya están seguros en tu dispositivo. Este reporte que realizaste puede ser de gran ayuda para la persona involucrada, pedile el correo y enviale estos datos o guardalos para darselos en un futuro."
+                  : "Los datos ya están seguros en tu dispositivo. ¿Deseás enviar el informe ahora a tu aseguradora?"}
               </Text>
 
               <View
@@ -253,7 +521,9 @@ export function SummaryStep({ step }: Props) {
                     color={!recipientEmail ? "#F59E0B" : theme.tint}
                   />
                   <Text style={styles.emailTitle}>
-                    Correo de la Aseguradora
+                    {isSpectator
+                      ? "Correo del involucrado"
+                      : "Correo de la Aseguradora"}
                   </Text>
                 </View>
                 <TextInput
@@ -261,7 +531,11 @@ export function SummaryStep({ step }: Props) {
                     styles.emailInput,
                     { color: theme.text, borderColor: theme.border },
                   ]}
-                  placeholder="ej: denuncias@seguro.com"
+                  placeholder={
+                    isSpectator
+                      ? "ej: involucrado@correo.com"
+                      : "ej: denuncias@seguro.com"
+                  }
                   placeholderTextColor={theme.tabIconDefault}
                   keyboardType="email-address"
                   autoCapitalize="none"
@@ -308,6 +582,59 @@ export function SummaryStep({ step }: Props) {
           </View>
         </View>
       </Modal>
+
+      {previewImage && (
+        <Modal
+          transparent
+          visible={!!previewImage}
+          animationType="fade"
+          onRequestClose={() => setPreviewImage(null)}
+        >
+          <TouchableOpacity
+            style={{
+              flex: 1,
+              backgroundColor: "rgba(0, 0, 0, 0.92)",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+            activeOpacity={1}
+            onPress={() => setPreviewImage(null)}
+          >
+            <View
+              style={{
+                width: "90%",
+                height: "80%",
+                justifyContent: "center",
+                alignItems: "center",
+                position: "relative",
+              }}
+            >
+              <Image
+                source={{ uri: previewImage }}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  borderRadius: 16,
+                }}
+                resizeMode="contain"
+              />
+              <TouchableOpacity
+                onPress={() => setPreviewImage(null)}
+                style={{
+                  position: "absolute",
+                  top: 20,
+                  right: 20,
+                  backgroundColor: "rgba(0, 0, 0, 0.5)",
+                  borderRadius: 20,
+                  padding: 8,
+                }}
+              >
+                <X size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -453,5 +780,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     opacity: 0.7,
+  },
+  thumbnailGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 4,
+    backgroundColor: "transparent",
+  },
+  thumbnail: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    borderWidth: 1,
   },
 });

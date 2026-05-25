@@ -63,43 +63,44 @@ export function InvolvedManagementStep({ step, onNext }: Props) {
     const unavailableFields = party.unavailableFields || [];
     const hasAnyData = !!(
       party.name ||
+      party.surname ||
+      party.phone ||
+      party.email ||
       party.dni ||
       party.policyNumber ||
       party.plate ||
       party.insuranceCompany ||
+      party.insuranceValidity ||
+      party.ownerName ||
       (party.photos.damage?.length || 0) > 0 ||
       party.photos.dniFront ||
-      party.photos.license
+      party.photos.dniBack ||
+      party.photos.licenseFront ||
+      party.photos.licenseBack ||
+      party.photos.plate
     );
 
     if (!hasAnyData) return "empty";
 
     const allRequiredCovered = requiredItems.every((item) => {
-      if (item.id === "aseguradora")
-        return !!party.insuranceCompany || unavailableFields.includes(item.id);
-      if (item.id === "poliza_num")
-        return !!party.policyNumber || unavailableFields.includes(item.id);
+      const isUnavailable = unavailableFields.includes(item.id);
+      if (isUnavailable) return true;
+
+      if (item.id === "aseguradora") return !!party.insuranceCompany;
+      if (item.id === "poliza_num") return !!party.policyNumber;
+      if (item.id === "vigencia_seguro") return !!party.insuranceValidity;
       if (item.id === "dominio_patente")
-        return !!party.plate || unavailableFields.includes(item.id);
-      if (item.id === "dni_photos")
-        return (
-          !!party.dni ||
-          !!party.photos.dniFront ||
-          unavailableFields.includes(item.id)
-        );
-      if (item.id === "licencia_img")
-        return !!party.photos.license || unavailableFields.includes(item.id);
-      if (item.id === "fotos_danos")
-        return (
-          (party.photos.damage?.length || 0) > 0 ||
-          unavailableFields.includes(item.id)
-        );
+        return !!party.plate || !!party.photos.plate;
+      if (item.id === "nombre_titular") return !!party.ownerName;
       if (item.id === "conductor_nombre")
-        return !!party.name || unavailableFields.includes(item.id);
-      return (
-        !!(party as any).responses?.[item.id] ||
-        unavailableFields.includes(item.id)
-      );
+        return !!party.name && !!party.surname;
+      if (item.id === "dni_photos")
+        return !!party.dni || !!party.photos.dniFront;
+      if (item.id === "licencia_img")
+        return !!party.photos.licenseFront || !!party.photos.licenseBack;
+      if (item.id === "fotos_danos")
+        return (party.photos.damage?.length || 0) > 0;
+      return false;
     });
 
     if (allRequiredCovered) {
@@ -111,6 +112,13 @@ export function InvolvedManagementStep({ step, onNext }: Props) {
 
   const isOnlyTwo =
     currentIncident?.responses["cantidad_vehiculos"] === "Solo 2 (yo y otro)";
+
+  const allPartiesComplete =
+    parties.length > 0 &&
+    parties.every((p) => {
+      const status = getPartyStatus(p);
+      return status === "complete" || status === "partial";
+    });
 
   return (
     <View style={styles.container}>
@@ -217,8 +225,10 @@ export function InvolvedManagementStep({ step, onNext }: Props) {
                         <Camera size={12} color={theme.text} opacity={0.6} />
                         <Text style={styles.badgeText}>
                           {(party.photos.damage?.length || 0) +
-                            (party.photos.dniFront ? 2 : 0) +
-                            (party.photos.license ? 1 : 0)}{" "}
+                            (party.photos.dniFront ? 1 : 0) +
+                            (party.photos.dniBack ? 1 : 0) +
+                            (party.photos.licenseFront ? 1 : 0) +
+                            (party.photos.licenseBack ? 1 : 0)}{" "}
                           fotos
                         </Text>
                       </View>
@@ -278,13 +288,20 @@ export function InvolvedManagementStep({ step, onNext }: Props) {
 
       <TouchableOpacity
         onPress={() => onNext(step.nextStep)}
-        disabled={parties.length === 0}
+        disabled={!allPartiesComplete}
         style={[
           styles.nextButton,
-          { backgroundColor: parties.length > 0 ? theme.tint : theme.border },
+          {
+            backgroundColor: allPartiesComplete ? theme.tint : theme.border,
+            opacity: allPartiesComplete ? 1 : 0.5,
+          },
         ]}
       >
-        <Text style={styles.nextButtonText}>Finalizar Intercambio</Text>
+        <Text style={styles.nextButtonText}>
+          {allPartiesComplete
+            ? "Finalizar Intercambio"
+            : "Faltan datos obligatorios"}
+        </Text>
       </TouchableOpacity>
 
       <Modal
