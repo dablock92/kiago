@@ -8,10 +8,11 @@ import {
   Check,
   CheckCircle2,
   Circle,
+  Download,
   ThumbsDown,
   X,
 } from "lucide-react-native";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
@@ -27,6 +28,7 @@ import { Text, View } from "@/components/Themed";
 import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 import { ChecklistItem, Step } from "../../../engine/types";
+import { exportGuideToPdf } from "../../../services/exportService";
 import {
   InvolvedParty,
   useIncidentStore,
@@ -46,7 +48,8 @@ const isImageUri = (val: any): boolean => {
 export function ChecklistStep({ step, onNext, partyId }: Props) {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
-  const { currentIncident, updateInvolvedParty } = useIncidentStore();
+  const { currentIncident, updateInvolvedParty, updateResponse } =
+    useIncidentStore();
 
   const [activeItem, setActiveItem] = useState<ChecklistItem | null>(null);
   const [formData, setFormData] = useState<Record<string, string>>({});
@@ -63,7 +66,13 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
     back?: string;
   }>({});
   const [tempPlatePhoto, setTempPlatePhoto] = useState("");
+  const [tempInsurancePhoto, setTempInsurancePhoto] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // Ref al input principal del modal activo: el foco se dispara en onShow
+  // (autoFocus dentro de un Modal es poco confiable porque la animación
+  // de apertura interrumpe el teclado).
+  const primaryInputRef = useRef<TextInput>(null);
 
   const currentParty = useMemo(
     () =>
@@ -87,6 +96,8 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
       });
     } else if (activeItem?.id === "dominio_patente" && currentParty) {
       setTempPlatePhoto(currentParty.photos?.plate || "");
+    } else if (activeItem?.id === "vigencia_seguro" && currentParty) {
+      setTempInsurancePhoto(currentParty.photos?.insurance || "");
     }
   }, [activeItem, currentParty]);
 
@@ -108,7 +119,8 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
       return {
         aseguradora: currentParty.insuranceCompany,
         poliza_num: currentParty.policyNumber,
-        vigencia_seguro: currentParty.insuranceValidity,
+        vigencia_seguro:
+          currentParty.insuranceValidity || currentParty.photos?.insurance,
         dominio_patente: currentParty.plate || currentParty.photos?.plate,
         nombre_titular: currentParty.ownerName,
         conductor_nombre: currentParty.name
@@ -168,6 +180,14 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
 
   const handleItemPress = (item: ChecklistItem) => {
     if (item.type === "section") return;
+    // Ítems informativos (guías): togglean el tilde ✓, no abren modal.
+    // Lo escrito en el modal no persistía sin partyId (ver ESTADO.md).
+    if (item.type === "info") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      const current = currentIncident?.responses?.[step.id] || {};
+      updateResponse(step.id, { ...current, [item.id]: !current[item.id] });
+      return;
+    }
     if (currentParty?.unavailableFields?.includes(item.id)) {
       handleToggleUnavailable(item.id);
       return;
@@ -185,7 +205,11 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
 
     const val = responses[item.id] || "";
     setFormData(item.fields ? {} : { [item.id]: String(val) });
-    setIsPhotoMode(item.type === "photo" || isImageUri(responses[item.id]));
+    // Los ítems "date" nunca entran en modo foto: su modal ofrece fecha + foto.
+    setIsPhotoMode(
+      item.type === "photo" ||
+        (item.type !== "date" && isImageUri(responses[item.id])),
+    );
   };
 
   const handleSaveItem = (valueOverride?: string) => {
@@ -223,6 +247,7 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
           break;
         case "vigencia_seguro":
           update.insuranceValidity = finalValue;
+          photosUpdate.insurance = tempInsurancePhoto || undefined;
           break;
         case "dominio_patente":
           update.plate = finalValue;
@@ -292,6 +317,11 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
         missingDataReason: currentParty.missingDataReason.trim(),
       });
     }
+    // Flows-guía: terminan acá, sin reporte (la máquina resuelve "fin").
+    if (step.finish) {
+      onNext("fin");
+      return;
+    }
     onNext(step.nextStep);
   };
 
@@ -341,6 +371,22 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
               );
             }
 
+            // Notas enunciativas (derechos, marcos legales): texto plano,
+            // sin check ni interacción — no son acciones del usuario.
+            if (item.type === "note") {
+              return (
+                <View
+                  key={`${item.id}-${index}`}
+                  style={[styles.noteItem, { borderLeftColor: theme.tint }]}
+                >
+                  <Text style={styles.noteText}>{item.label}</Text>
+                  {item.hint && (
+                    <Text style={styles.noteHint}>{item.hint}</Text>
+                  )}
+                </View>
+              );
+            }
+
             return (
               <TouchableOpacity
                 key={`${item.id}-${index}`}
@@ -384,7 +430,7 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
                     {item.hint && !isDone && (
                       <Text style={styles.hintText}>{item.hint}</Text>
                     )}
-                    {isDone && !isUnavailable && (
+                    {isDone && !isUnavailable && typeof value !== "boolean" && (
                       <View
                         style={{
                           flexDirection: "row",
@@ -394,7 +440,9 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
                           backgroundColor: "transparent",
                         }}
                       >
-                        {item.type === "camera" || item.type === "photo" ? (
+                        {item.type === "camera" ||
+                        item.type === "photo" ||
+                        isImageUri(value) ? (
                           Array.isArray(value) ? (
                             <View
                               style={{
@@ -589,20 +637,50 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
         </View>
       </ScrollView>
 
-      <TouchableOpacity
-        onPress={handleNext}
-        disabled={!allCompleted}
-        style={[
-          styles.nextButton,
-          { backgroundColor: allCompleted ? theme.tint : theme.border },
-        ]}
-      >
-        <Text style={styles.nextButtonText}>
-          {partyId ? "Guardar cambios" : "Continuar"}
-        </Text>
-      </TouchableOpacity>
+      <View style={styles.footerButtons}>
+        {step.sharePdf && (
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              exportGuideToPdf(step);
+            }}
+            style={[styles.shareButton, { borderColor: theme.tint }]}
+          >
+            <Download size={20} color={theme.tint} />
+            <Text style={[styles.shareButtonText, { color: theme.tint }]}>
+              Descargar / Compartir PDF
+            </Text>
+          </TouchableOpacity>
+        )}
 
-      <Modal visible={!!activeItem} animationType="slide" transparent={true}>
+        <TouchableOpacity
+          onPress={handleNext}
+          disabled={!allCompleted}
+          style={[
+            styles.nextButton,
+            { backgroundColor: allCompleted ? theme.tint : theme.border },
+          ]}
+        >
+          <Text style={styles.nextButtonText}>
+            {step.finish
+              ? "Finalizar"
+              : partyId
+                ? "Guardar cambios"
+                : "Continuar"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <Modal
+        visible={!!activeItem}
+        animationType="slide"
+        transparent={true}
+        onShow={() => {
+          // Pequeño delay para asegurar que el input ya esté montado y la
+          // animación no se coma el teclado (necesario sobre todo en Android).
+          setTimeout(() => primaryInputRef.current?.focus(), 80);
+        }}
+      >
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.modalOverlay}
@@ -625,10 +703,11 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
             <View style={styles.inputContainer}>
               {activeItem?.fields ? (
                 <View style={styles.fieldsGrid}>
-                  {activeItem.fields.map((field) => (
+                  {activeItem.fields.map((field, fieldIndex) => (
                     <View key={field.id} style={styles.fieldWrapper}>
                       <Text style={styles.fieldLabel}>{field.label}</Text>
                       <TextInput
+                        ref={fieldIndex === 0 ? primaryInputRef : undefined}
                         style={[
                           styles.input,
                           {
@@ -664,11 +743,13 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
                           Número de DNI
                         </Text>
                         <TextInput
+                          ref={primaryInputRef}
                           style={[
                             styles.input,
                             {
                               backgroundColor: theme.card,
                               borderColor: theme.border,
+                              color: theme.text,
                               minHeight: 60,
                               borderRadius: 16,
                               paddingHorizontal: 16,
@@ -761,6 +842,7 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
                           Patente / Dominio
                         </Text>
                         <TextInput
+                          ref={primaryInputRef}
                           style={[
                             styles.input,
                             {
@@ -983,35 +1065,93 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
                     </View>
                   ) : !isPhotoMode ? (
                     activeItem?.type === "date" ? (
-                      <TouchableOpacity
-                        onPress={() => setShowDatePicker(true)}
-                        style={[
-                          styles.input,
-                          {
-                            backgroundColor: theme.card,
-                            borderColor: theme.border,
-                            flexDirection: "row",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                          },
-                        ]}
-                      >
-                        <Text
-                          style={{
-                            color: formData[activeItem.id]
-                              ? theme.text
-                              : theme.tabIconDefault,
-                            fontSize: 18,
-                          }}
+                      <View style={{ gap: 20 }}>
+                        <TouchableOpacity
+                          onPress={() => setShowDatePicker(true)}
+                          style={[
+                            styles.input,
+                            {
+                              backgroundColor: theme.card,
+                              borderColor: theme.border,
+                              flexDirection: "row",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                            },
+                          ]}
                         >
-                          {formData[activeItem.id] ||
-                            activeItem.placeholder ||
-                            "Seleccionar fecha"}
-                        </Text>
-                        <Calendar size={24} color={theme.tint} />
-                      </TouchableOpacity>
+                          <Text
+                            style={{
+                              color: formData[activeItem.id]
+                                ? theme.text
+                                : theme.tabIconDefault,
+                              fontSize: 18,
+                            }}
+                          >
+                            {formData[activeItem.id] ||
+                              activeItem.placeholder ||
+                              "Seleccionar fecha"}
+                          </Text>
+                          <Calendar size={24} color={theme.tint} />
+                        </TouchableOpacity>
+
+                        {activeItem?.allowPhoto && (
+                          <View style={{ gap: 8 }}>
+                            <Text
+                              style={{
+                                fontSize: 13,
+                                fontWeight: "900",
+                                opacity: 0.5,
+                                textTransform: "uppercase",
+                                letterSpacing: 1,
+                              }}
+                            >
+                              O adjuntá una foto
+                            </Text>
+                            <TouchableOpacity
+                              onPress={() => setShowCamera(true)}
+                              style={{
+                                height: 140,
+                                borderRadius: 16,
+                                borderWidth: 2,
+                                borderColor: tempInsurancePhoto
+                                  ? "#10B981"
+                                  : theme.border,
+                                borderStyle: tempInsurancePhoto
+                                  ? "solid"
+                                  : "dashed",
+                                justifyContent: "center",
+                                alignItems: "center",
+                                backgroundColor: theme.card,
+                                overflow: "hidden",
+                              }}
+                            >
+                              {tempInsurancePhoto ? (
+                                <Image
+                                  source={{ uri: tempInsurancePhoto }}
+                                  style={{ width: "100%", height: "100%" }}
+                                />
+                              ) : (
+                                <>
+                                  <CameraIcon size={32} color={theme.tint} />
+                                  <Text
+                                    style={{
+                                      fontSize: 12,
+                                      fontWeight: "bold",
+                                      color: theme.tint,
+                                      marginTop: 4,
+                                    }}
+                                  >
+                                    TOMAR FOTO
+                                  </Text>
+                                </>
+                              )}
+                            </TouchableOpacity>
+                          </View>
+                        )}
+                      </View>
                     ) : (
                       <TextInput
+                        ref={primaryInputRef}
                         style={[
                           styles.input,
                           {
@@ -1025,11 +1165,21 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
                         }
                         placeholderTextColor={theme.tabIconDefault}
                         value={formData[activeItem?.id || ""]}
-                        onChangeText={(text) =>
+                        onChangeText={(text) => {
+                          // Teléfono: solo dígitos y símbolos telefónicos.
+                          const clean =
+                            activeItem?.id === "conductor_tel"
+                              ? text.replace(/[^0-9+\s()-]/g, "")
+                              : text;
                           setFormData({
                             ...formData,
-                            [activeItem?.id || ""]: text,
-                          })
+                            [activeItem?.id || ""]: clean,
+                          });
+                        }}
+                        keyboardType={
+                          activeItem?.id === "conductor_tel"
+                            ? "phone-pad"
+                            : "default"
                         }
                         autoFocus
                       />
@@ -1145,6 +1295,15 @@ export function ChecklistStep({ step, onNext, partyId }: Props) {
                 },
               });
               setShowCamera(false);
+            } else if (activeItem?.id === "vigencia_seguro") {
+              setTempInsurancePhoto(uri);
+              updateInvolvedParty(partyId!, {
+                photos: {
+                  ...currentParty?.photos,
+                  insurance: uri,
+                },
+              });
+              setShowCamera(false);
             } else {
               handleSaveItem(uri);
               setShowCamera(false);
@@ -1226,11 +1385,36 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
     marginTop: 8,
   },
+  noteItem: {
+    paddingVertical: 6,
+    paddingLeft: 14,
+    borderLeftWidth: 2,
+    backgroundColor: "transparent",
+    gap: 2,
+  },
+  noteText: { fontSize: 14, lineHeight: 20, opacity: 0.85, fontWeight: "500" },
+  noteHint: { fontSize: 12, opacity: 0.5, fontStyle: "italic" },
+  footerButtons: {
+    margin: 20,
+    marginTop: 0,
+    gap: 12,
+    backgroundColor: "transparent",
+  },
+  shareButton: {
+    padding: 18,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
+  shareButtonText: { fontSize: 16, fontWeight: "bold" },
   nextButton: {
     padding: 24,
     borderRadius: 24,
     alignItems: "center",
-    margin: 20,
+    marginTop: 8,
   },
   nextButtonText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
   modalOverlay: {

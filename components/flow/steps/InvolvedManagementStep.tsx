@@ -69,7 +69,8 @@ export function InvolvedManagementStep({ step, onNext }: Props) {
       party.insuranceCompany ||
       (party.photos.damage?.length || 0) > 0 ||
       party.photos.dniFront ||
-      party.photos.license
+      party.photos.licenseFront ||
+      party.photos.licenseBack
     );
 
     if (!hasAnyData) return "empty";
@@ -88,7 +89,10 @@ export function InvolvedManagementStep({ step, onNext }: Props) {
           unavailableFields.includes(item.id)
         );
       if (item.id === "licencia_img")
-        return !!party.photos.license || unavailableFields.includes(item.id);
+        return (
+          !!(party.photos.licenseFront || party.photos.licenseBack) ||
+          unavailableFields.includes(item.id)
+        );
       if (item.id === "fotos_danos")
         return (
           (party.photos.damage?.length || 0) > 0 ||
@@ -96,6 +100,14 @@ export function InvolvedManagementStep({ step, onNext }: Props) {
         );
       if (item.id === "conductor_nombre")
         return !!party.name || unavailableFields.includes(item.id);
+      if (item.id === "vigencia_seguro")
+        return (
+          !!party.insuranceValidity ||
+          !!party.photos.insurance ||
+          unavailableFields.includes(item.id)
+        );
+      if (item.id === "nombre_titular")
+        return !!party.ownerName || unavailableFields.includes(item.id);
       return (
         !!(party as any).responses?.[item.id] ||
         unavailableFields.includes(item.id)
@@ -217,8 +229,11 @@ export function InvolvedManagementStep({ step, onNext }: Props) {
                         <Camera size={12} color={theme.text} opacity={0.6} />
                         <Text style={styles.badgeText}>
                           {(party.photos.damage?.length || 0) +
-                            (party.photos.dniFront ? 2 : 0) +
-                            (party.photos.license ? 1 : 0)}{" "}
+                            (party.photos.dniFront ? 1 : 0) +
+                            (party.photos.dniBack ? 1 : 0) +
+                            (party.photos.licenseFront ? 1 : 0) +
+                            (party.photos.licenseBack ? 1 : 0) +
+                            (party.photos.plate ? 1 : 0)}{" "}
                           fotos
                         </Text>
                       </View>

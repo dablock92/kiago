@@ -31,6 +31,13 @@ export default function FlowScreen() {
   }, [flow, currentStepId]);
 
   const handleNext = (nextId?: string) => {
+    // Sentinel de fin de flow-guía: vuelve al inicio SIN generar reporte
+    // (no todo problema genera un reporte — ver FABLE_BRIEF/ESTADO).
+    if (nextId === "fin") {
+      completeIncident();
+      router.replace("/");
+      return;
+    }
     if (nextId) {
       setHistory((prev) => [...prev, currentStepId]);
       setCurrentStepId(nextId);

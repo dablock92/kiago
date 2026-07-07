@@ -1,4 +1,5 @@
 import * as Haptics from "expo-haptics";
+import * as Linking from "expo-linking";
 import React from "react";
 import { StyleSheet, TouchableOpacity } from "react-native";
 
@@ -22,9 +23,9 @@ export function QuestionStep({ step, onNext }: Props) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     updateResponse(step.id, option.label);
 
-    if (option.action === "CALL_107") {
-      // Mock emergency call
-      alert("Llamando al 107...");
+    // Acciones "tel:<numero>" abren el discador nativo (antes era un mock).
+    if (option.action?.startsWith("tel:")) {
+      Linking.openURL(option.action);
     }
 
     onNext(option.nextStep);

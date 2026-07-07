@@ -1,7 +1,6 @@
-import { Link, Tabs } from "expo-router";
-import { History, Home, Info, Settings } from "lucide-react-native";
+import { Tabs } from "expo-router";
+import { History, Home, Settings } from "lucide-react-native";
 import React from "react";
-import { Pressable } from "react-native";
 
 import { useClientOnlyValue } from "@/components/useClientOnlyValue";
 import { useColorScheme } from "@/components/useColorScheme";

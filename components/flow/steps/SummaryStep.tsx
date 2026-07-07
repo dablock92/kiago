@@ -11,9 +11,11 @@ import {
   Save,
   X,
 } from "lucide-react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
+  Image,
   Modal,
   Platform,
   ScrollView,
@@ -62,12 +64,17 @@ export function SummaryStep({ step }: Props) {
   const [isExporting, setIsExporting] = useState(false);
   const [recipientEmail, setRecipientEmail] = useState("");
   const [showSendModal, setShowSendModal] = useState(false);
+  const emailInputRef = useRef<TextInput>(null);
+
+  // Solo el choque se envía a la aseguradora; el resto de los reportes usan
+  // un correo de destino genérico (no todo problema tiene aseguradora).
+  const isChoque = currentIncident?.flowId === "choque";
 
   useEffect(() => {
-    if (settings.insuranceEmail) {
+    if (isChoque && settings.insuranceEmail) {
       setRecipientEmail(settings.insuranceEmail);
     }
-  }, [settings.insuranceEmail]);
+  }, [settings.insuranceEmail, isChoque]);
 
   const handleDownloadPdf = async () => {
     if (!currentIncident) return;
@@ -84,7 +91,23 @@ export function SummaryStep({ step }: Props) {
     setIsExporting(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
-      await exportIncidentToMail(currentIncident, recipientEmail.trim());
+      const status = await exportIncidentToMail(
+        currentIncident,
+        recipientEmail.trim(),
+      );
+      // Si el usuario canceló el correo, se queda en el modal para reintentar.
+      // Cualquier otro resultado (sent/saved/undetermined) cierra y vuelve al
+      // inicio con confirmación.
+      if (status && status !== "cancelled") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setShowSendModal(false);
+        completeIncident();
+        router.replace("/");
+        Alert.alert(
+          "¡Informe enviado!",
+          "Tu reporte fue enviado correctamente y quedó guardado en el historial.",
+        );
+      }
     } catch {
       Alert.alert("Error", "No se pudo abrir la aplicación de correo.");
     } finally {
@@ -145,14 +168,62 @@ export function SummaryStep({ step }: Props) {
               { backgroundColor: theme.card, borderColor: theme.border },
             ]}
           >
-            {Object.entries(responses).map(([key, value]) => {
-              if (typeof value === "object") return null;
-              return (
+            {Object.entries(responses).flatMap(([key, value]) => {
+              if (!value) return [];
+              // Arrays: si son fotos (uris), mostramos las miniaturas.
+              if (Array.isArray(value)) {
+                if (value.length === 0) return [];
+                const imgs = value.filter(
+                  (v): v is string =>
+                    typeof v === "string" && v.startsWith("file://"),
+                );
+                if (imgs.length > 0) {
+                  return [
+                    <View key={key} style={styles.photoBlock}>
+                      <Text style={styles.infoLabel}>{formatLabel(key)}:</Text>
+                      <View style={styles.thumbRow}>
+                        {imgs.map((uri, i) => (
+                          <Image
+                            key={i}
+                            source={{ uri }}
+                            style={[
+                              styles.thumb,
+                              { borderColor: theme.border },
+                            ]}
+                          />
+                        ))}
+                      </View>
+                    </View>,
+                  ];
+                }
+                return [
+                  <View key={key} style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>{formatLabel(key)}:</Text>
+                    <Text style={styles.infoValue}>
+                      {value.length} elemento{value.length > 1 ? "s" : ""}
+                    </Text>
+                  </View>,
+                ];
+              }
+              // Objetos (respuestas de FormStep) → aplanamos campo por campo.
+              if (typeof value === "object") {
+                return Object.entries(value as Record<string, unknown>)
+                  .filter(([, v]) => typeof v === "string" && v)
+                  .map(([subKey, subValue]) => (
+                    <View key={`${key}-${subKey}`} style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>
+                        {formatLabel(subKey)}:
+                      </Text>
+                      <Text style={styles.infoValue}>{String(subValue)}</Text>
+                    </View>
+                  ));
+              }
+              return [
                 <View key={key} style={styles.infoRow}>
                   <Text style={styles.infoLabel}>{formatLabel(key)}:</Text>
                   <Text style={styles.infoValue}>{String(value)}</Text>
-                </View>
-              );
+                </View>,
+              ];
             })}
           </View>
         </View>
@@ -163,54 +234,74 @@ export function SummaryStep({ step }: Props) {
               <UserIcon size={18} color={theme.tint} />
               <Text style={styles.sectionTitle}>Involucrados</Text>
             </View>
-            {parties.map((party, idx) => (
-              <View
-                key={party.id}
-                style={[
-                  styles.card,
-                  { backgroundColor: theme.card, borderColor: theme.border },
-                ]}
-              >
-                <View style={styles.cardHeader}>
-                  <Text style={styles.partyName}>
-                    {party.useDniPhoto
-                      ? "Identidad por foto"
-                      : `${party.name || "Sin nombre"} ${party.surname || ""}`}
-                  </Text>
-                  <Car size={18} color={theme.text} opacity={0.3} />
+            {parties.map((party) => {
+              const partyPhotos = [
+                party.photos?.dniFront,
+                party.photos?.dniBack,
+                party.photos?.licenseFront,
+                party.photos?.licenseBack,
+                party.photos?.plate,
+                party.photos?.insurance,
+                ...(party.photos?.damage || []),
+              ].filter(Boolean) as string[];
+
+              return (
+                <View
+                  key={party.id}
+                  style={[
+                    styles.card,
+                    { backgroundColor: theme.card, borderColor: theme.border },
+                  ]}
+                >
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.partyName}>
+                      {party.useDniPhoto
+                        ? "Identidad por foto"
+                        : `${party.name || "Sin nombre"} ${party.surname || ""}`}
+                    </Text>
+                    <Car size={18} color={theme.text} opacity={0.3} />
+                  </View>
+                  <View style={styles.cardBody}>
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>Compañía:</Text>
+                      <Text style={styles.infoValue}>
+                        {party.insuranceCompany || "No cargado"}
+                      </Text>
+                    </View>
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>Póliza:</Text>
+                      <Text style={styles.infoValue}>
+                        {party.policyNumber || "-"}
+                      </Text>
+                    </View>
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>Patente:</Text>
+                      <Text style={styles.infoValue}>{party.plate || "-"}</Text>
+                    </View>
+                    {partyPhotos.length > 0 && (
+                      <View style={styles.thumbRow}>
+                        {partyPhotos.map((uri, i) => (
+                          <Image
+                            key={i}
+                            source={{ uri }}
+                            style={[
+                              styles.thumb,
+                              { borderColor: theme.border },
+                            ]}
+                          />
+                        ))}
+                      </View>
+                    )}
+                    <View style={styles.photoSummary}>
+                      <Camera size={12} color={theme.text} opacity={0.5} />
+                      <Text style={styles.photoCount}>
+                        {partyPhotos.length} fotos de evidencia
+                      </Text>
+                    </View>
+                  </View>
                 </View>
-                <View style={styles.cardBody}>
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Compañía:</Text>
-                    <Text style={styles.infoValue}>
-                      {party.insuranceCompany || "No cargado"}
-                    </Text>
-                  </View>
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Póliza:</Text>
-                    <Text style={styles.infoValue}>
-                      {party.policyNumber || "-"}
-                    </Text>
-                  </View>
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Patente:</Text>
-                    <Text style={styles.infoValue}>{party.plate || "-"}</Text>
-                  </View>
-                  <View style={styles.photoSummary}>
-                    <Camera size={12} color={theme.text} opacity={0.5} />
-                    <Text style={styles.photoCount}>
-                      {(party.photos.damage?.length || 0) +
-                        (party.photos.dniFront ? 1 : 0) +
-                        (party.photos.dniBack ? 1 : 0) +
-                        (party.photos.licenseFront ? 1 : 0) +
-                        (party.photos.licenseBack ? 1 : 0) +
-                        (party.photos.plate ? 1 : 0)}{" "}
-                      fotos de evidencia
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
         )}
 
@@ -227,7 +318,18 @@ export function SummaryStep({ step }: Props) {
         </TouchableOpacity>
       </View>
 
-      <Modal visible={showSendModal} animationType="slide" transparent={true}>
+      <Modal
+        visible={showSendModal}
+        animationType="slide"
+        transparent={true}
+        onShow={() => {
+          // Foco directo al email solo si está vacío (si vino pre-cargado de
+          // Ajustes, no molestamos con el teclado tapando los botones).
+          if (!recipientEmail) {
+            setTimeout(() => emailInputRef.current?.focus(), 80);
+          }
+        }}
+      >
         <View style={styles.modalOverlay}>
           <View
             style={[styles.modalContent, { backgroundColor: theme.background }]}
@@ -246,8 +348,9 @@ export function SummaryStep({ step }: Props) {
 
             <View style={styles.modalBody}>
               <Text style={[styles.modalText, { color: theme.text }]}>
-                Los datos ya están seguros en tu dispositivo. ¿Deseás enviar el
-                informe ahora a tu aseguradora?
+                {isChoque
+                  ? "Los datos ya están seguros en tu dispositivo. ¿Deseás enviar el informe ahora a tu aseguradora?"
+                  : "Los datos ya están seguros en tu dispositivo. Si querés, podés enviar el reporte por correo o descargarlo en PDF."}
               </Text>
 
               <View
@@ -267,10 +370,13 @@ export function SummaryStep({ step }: Props) {
                     color={!recipientEmail ? "#F59E0B" : theme.tint}
                   />
                   <Text style={styles.emailTitle}>
-                    Correo de la Aseguradora
+                    {isChoque
+                      ? "Correo de la Aseguradora"
+                      : "Correo de destino (opcional)"}
                   </Text>
                 </View>
                 <TextInput
+                  ref={emailInputRef}
                   style={[
                     styles.emailInput,
                     { color: theme.text, borderColor: theme.border },
@@ -303,8 +409,14 @@ export function SummaryStep({ step }: Props) {
                     },
                   ]}
                 >
-                  <Mail size={20} color="#fff" />
-                  <Text style={styles.primaryButtonText}>Enviar Informe</Text>
+                  {isExporting ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Mail size={20} color="#fff" />
+                  )}
+                  <Text style={styles.primaryButtonText}>
+                    {isExporting ? "Preparando informe..." : "Enviar Informe"}
+                  </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -319,7 +431,11 @@ export function SummaryStep({ step }: Props) {
                     },
                   ]}
                 >
-                  <Download size={20} color={theme.tint} />
+                  {isExporting ? (
+                    <ActivityIndicator color={theme.tint} />
+                  ) : (
+                    <Download size={20} color={theme.tint} />
+                  )}
                   <Text
                     style={[styles.outlineButtonText, { color: theme.tint }]}
                   >
@@ -329,7 +445,14 @@ export function SummaryStep({ step }: Props) {
 
                 <TouchableOpacity
                   onPress={handleFinalExit}
-                  style={[styles.outlineButton, { borderColor: theme.border }]}
+                  disabled={isExporting}
+                  style={[
+                    styles.outlineButton,
+                    {
+                      borderColor: theme.border,
+                      opacity: isExporting ? 0.5 : 1,
+                    },
+                  ]}
                 >
                   <Text
                     style={[styles.outlineButtonText, { color: theme.text }]}
@@ -388,6 +511,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     marginBottom: 16,
+    backgroundColor: "transparent",
   },
   sectionTitle: {
     fontSize: 13,
@@ -402,17 +526,37 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     borderBottomWidth: 1,
-    borderBottomColor: "#00000005",
+    borderBottomColor: "#FFFFFF15",
     paddingBottom: 12,
     marginBottom: 12,
+    backgroundColor: "transparent",
   },
   partyName: { fontSize: 18, fontWeight: "800" },
-  cardBody: { gap: 10 },
+  cardBody: { gap: 10, backgroundColor: "transparent" },
   infoRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
     paddingVertical: 2,
+    backgroundColor: "transparent",
+  },
+  photoBlock: {
+    paddingVertical: 6,
+    backgroundColor: "transparent",
+    gap: 4,
+  },
+  thumbRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 6,
+    backgroundColor: "transparent",
+  },
+  thumb: {
+    width: 56,
+    height: 56,
+    borderRadius: 8,
+    borderWidth: 1,
   },
   infoLabel: {
     fontSize: 14,
@@ -427,9 +571,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     marginTop: 8,
-    backgroundColor: "#00000005",
-    padding: 8,
-    borderRadius: 10,
+    backgroundColor: "transparent",
     alignSelf: "flex-start",
   },
   photoCount: { fontSize: 11, fontWeight: "bold", opacity: 0.4 },

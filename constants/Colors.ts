@@ -17,7 +17,7 @@ export default {
     tint: tintColorDark,
     tabIconDefault: "#475569",
     tabIconSelected: tintColorDark,
-    card: "#1E293B",
-    border: "#334155",
+    card: "#273449",
+    border: "#3B4A63",
   },
 };

@@ -1,89 +1,220 @@
-import { ChevronRight, Globe, Languages, MapPin } from "lucide-react-native";
+import {
+  AtSign,
+  Car,
+  FileText,
+  Globe,
+  Languages,
+  MapPin,
+  Shield,
+  User,
+} from "lucide-react-native";
 import React from "react";
-import { Pressable, ScrollView, StyleSheet } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+} from "react-native";
 
 import { Text, View } from "@/components/Themed";
 import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 import { useConfigStore } from "../../store/useConfigStore";
+import { useSettingsStore } from "../../store/useSettingsStore";
 
 export default function SettingsScreen() {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
   const { country, province, language } = useConfigStore();
+  const { settings, updateSettings } = useSettingsStore();
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: theme.background }]}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1 }}
     >
-      <View style={styles.header}>
-        <Text style={styles.subtitle}>
-          Configurá tu contexto para recibir la mejor asistencia.
-        </Text>
-      </View>
+      <ScrollView
+        style={[styles.container, { backgroundColor: theme.background }]}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.header}>
+          <Text style={styles.subtitle}>
+            Cargá tus datos una sola vez y usalos en todos tus reportes.
+          </Text>
+        </View>
 
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: theme.tint }]}>
-          Localización
-        </Text>
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.tint }]}>
+            Mis datos
+          </Text>
 
-        <SettingItem
-          icon={<Globe size={20} color={theme.text} />}
-          label="País"
-          value={country}
-          disabled={true}
-        />
+          <EditableItem
+            icon={<User size={20} color={theme.text} />}
+            label="Nombre y apellido"
+            placeholder="Ej: Juan Pérez"
+            value={settings.userName}
+            onChange={(text) => updateSettings({ userName: text })}
+          />
 
-        <SettingItem
-          icon={<MapPin size={20} color={theme.text} />}
-          label="Provincia / Estado"
-          value={province}
-          disabled={true}
-        />
-      </View>
+          <EditableItem
+            icon={<AtSign size={20} color={theme.text} />}
+            label="Tu email"
+            placeholder="Ej: juan@mail.com"
+            value={settings.userEmail}
+            onChange={(text) => updateSettings({ userEmail: text })}
+            keyboardType="email-address"
+          />
+        </View>
 
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: theme.tint }]}>
-          Preferencia
-        </Text>
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.tint }]}>
+            Mi vehículo y seguro
+          </Text>
 
-        <SettingItem
-          icon={<Languages size={20} color={theme.text} />}
-          label="Idioma"
-          value={language}
-          disabled={true}
-        />
-      </View>
+          <EditableItem
+            icon={<Car size={20} color={theme.text} />}
+            label="Patente / Dominio"
+            placeholder="Ej: AF 123 BK"
+            value={settings.userPlate}
+            onChange={(text) => updateSettings({ userPlate: text })}
+            autoCapitalize="characters"
+          />
 
-      <View style={styles.footer}>
-        <Text style={styles.version}>Modo Crisis v1.0.0</Text>
-      </View>
-    </ScrollView>
+          <EditableItem
+            icon={<Shield size={20} color={theme.text} />}
+            label="Aseguradora"
+            placeholder="Ej: La Caja"
+            value={settings.insuranceName}
+            onChange={(text) => updateSettings({ insuranceName: text })}
+          />
+
+          <EditableItem
+            icon={<FileText size={20} color={theme.text} />}
+            label="Nº de póliza"
+            placeholder="Ej: 0012345678"
+            value={settings.userPolicy}
+            onChange={(text) => updateSettings({ userPolicy: text })}
+          />
+
+          <EditableItem
+            icon={<AtSign size={20} color={theme.text} />}
+            label="Email de la aseguradora"
+            placeholder="Ej: denuncias@seguro.com"
+            hint="Se usa para pre-cargar el envío de tus reportes."
+            value={settings.insuranceEmail}
+            onChange={(text) => updateSettings({ insuranceEmail: text })}
+            keyboardType="email-address"
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.tint }]}>
+            Localización
+          </Text>
+
+          <ReadOnlyItem
+            icon={<Globe size={20} color={theme.text} />}
+            label="País"
+            value={country}
+          />
+
+          <ReadOnlyItem
+            icon={<MapPin size={20} color={theme.text} />}
+            label="Provincia / Estado"
+            value={province}
+          />
+
+          <ReadOnlyItem
+            icon={<Languages size={20} color={theme.text} />}
+            label="Idioma"
+            value={language}
+          />
+        </View>
+
+        <View style={styles.footer}>
+          <Text style={styles.version}>Modo Crisis v1.0.0</Text>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
-function SettingItem({
+function EditableItem({
   icon,
   label,
   value,
-  disabled,
+  placeholder,
+  hint,
+  onChange,
+  keyboardType,
+  autoCapitalize,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
-  disabled: boolean;
+  placeholder?: string;
+  hint?: string;
+  onChange: (text: string) => void;
+  keyboardType?: "default" | "email-address";
+  autoCapitalize?: "none" | "characters" | "sentences" | "words";
 }) {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
 
   return (
-    <Pressable
-      style={({ pressed }) => [
+    <View
+      style={[
+        styles.item,
+        { backgroundColor: theme.card, borderColor: theme.border },
+      ]}
+    >
+      <View style={styles.itemLeft}>
+        <View style={[styles.iconBox, { backgroundColor: theme.background }]}>
+          {icon}
+        </View>
+        <View style={styles.inputWrapper}>
+          <Text style={styles.itemLabel}>{label}</Text>
+          <TextInput
+            style={[styles.input, { color: theme.text }]}
+            placeholder={placeholder}
+            placeholderTextColor={theme.tabIconDefault}
+            value={value}
+            onChangeText={onChange}
+            onEndEditing={(e) => onChange(e.nativeEvent.text.trim())}
+            keyboardType={keyboardType || "default"}
+            autoCapitalize={
+              autoCapitalize ||
+              (keyboardType === "email-address" ? "none" : "sentences")
+            }
+          />
+          {hint ? <Text style={styles.itemHint}>{hint}</Text> : null}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function ReadOnlyItem({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  const colorScheme = useColorScheme();
+  const theme = Colors[colorScheme ?? "light"];
+
+  return (
+    <View
+      style={[
         styles.item,
         {
           backgroundColor: theme.card,
           borderColor: theme.border,
-          opacity: disabled ? 0.6 : pressed ? 0.8 : 1,
+          opacity: 0.6,
         },
       ]}
     >
@@ -96,8 +227,7 @@ function SettingItem({
           <Text style={styles.itemValue}>{value}</Text>
         </View>
       </View>
-      {!disabled && <ChevronRight size={20} color={theme.tabIconDefault} />}
-    </Pressable>
+    </View>
   );
 }
 
@@ -107,10 +237,6 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: 24,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: "900",
   },
   subtitle: {
     fontSize: 16,
@@ -142,6 +268,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 16,
     backgroundColor: "transparent",
+    flex: 1,
   },
   iconBox: {
     width: 40,
@@ -149,6 +276,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
+  },
+  inputWrapper: {
+    flex: 1,
+    backgroundColor: "transparent",
+    gap: 2,
   },
   itemLabel: {
     fontSize: 14,
@@ -158,6 +290,16 @@ const styles = StyleSheet.create({
   itemValue: {
     fontSize: 16,
     fontWeight: "bold",
+  },
+  input: {
+    fontSize: 16,
+    fontWeight: "bold",
+    paddingVertical: 4,
+  },
+  itemHint: {
+    fontSize: 11,
+    opacity: 0.4,
+    fontStyle: "italic",
   },
   footer: {
     alignItems: "center",

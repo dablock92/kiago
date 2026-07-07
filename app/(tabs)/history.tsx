@@ -1,4 +1,4 @@
-import { History, ExternalLink, FileText, Info, X } from "lucide-react-native";
+import { History, ExternalLink, FileText, X } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import {
   FlatList,
@@ -11,6 +11,7 @@ import {
 import { Text, View } from "@/components/Themed";
 import Colors from "@/constants/Colors";
 import { useColorScheme } from "@/components/useColorScheme";
+import { getFlowTitle } from "@/data/flows";
 import { getAllIncidents } from "@/services/databaseService";
 import { Incident } from "@/store/useIncidentStore";
 
@@ -62,9 +63,7 @@ export default function HistoryScreen() {
           <FileText size={24} color={theme.tint} />
         </View>
         <View style={{ flex: 1, backgroundColor: "transparent" }}>
-          <Text style={styles.itemTitle}>
-            {item.flowId === "crash-report" ? "Reporte de Choque" : "Incidente"}
-          </Text>
+          <Text style={styles.itemTitle}>{getFlowTitle(item.flowId)}</Text>
           <Text style={styles.itemSubtitle}>
             {date} • {time}
           </Text>
@@ -168,10 +167,9 @@ export default function HistoryScreen() {
                           ]}
                         >
                           <Text style={styles.partyTitle}>
-                            {idx === 0 &&
-                            selectedIncident.flowId === "crash-report"
-                              ? "Parte Asegurada (Yo)"
-                              : `Tercero #${idx}`}
+                            {selectedIncident.flowId === "choque"
+                              ? `Tercero Involucrado #${idx + 1}`
+                              : `Involucrado #${idx + 1}`}
                           </Text>
                           <View style={styles.partyGrid}>
                             <View style={styles.partyItem}>

@@ -21,7 +21,17 @@ export interface Option {
 export interface ChecklistItem {
   id: string;
   label: string;
-  type: "text" | "photo" | "info" | "multiple" | "section" | "camera" | "date";
+  // "info": paso accionable (togglea ✓ al tocarlo).
+  // "note": texto enunciativo (derechos, marcos legales) — no interactivo.
+  type:
+    | "text"
+    | "photo"
+    | "info"
+    | "note"
+    | "multiple"
+    | "section"
+    | "camera"
+    | "date";
   action?: string;
   allowPhoto?: boolean;
   placeholder?: string;
@@ -41,6 +51,12 @@ export interface Step {
   fields?: Field[];
   checklistItems?: (string | ChecklistItem)[]; // Support both simple and interactive
   nextStep?: string;
+  // Muestra un botón para descargar/compartir el contenido del step como PDF
+  // (útil para guías de derechos: Ley 25.065, derechos del pasajero, etc.).
+  sharePdf?: boolean;
+  // Step terminal de un flow-guía: el botón dice "Finalizar" y vuelve al
+  // inicio SIN generar reporte (no todo problema genera un reporte).
+  finish?: boolean;
 }
 
 export interface Field {
@@ -58,17 +74,5 @@ export interface Flow {
   steps: Step[];
 }
 
-export interface IncidentResponse {
-  stepId: string;
-  value: any;
-  timestamp: number;
-}
-
-export interface Incident {
-  id: string;
-  flowId: string;
-  status: "in_progress" | "completed";
-  responses: Record<string, any>;
-  createdAt: number;
-  updatedAt: number;
-}
+// NOTA: el tipo `Incident` real vive en store/useIncidentStore.ts
+// (acá existía un duplicado muerto que fue eliminado — ver FABLE_BRIEF.md §7.3).

@@ -9,6 +9,7 @@ import Colors from "@/constants/Colors";
 import { Step } from "../../engine/types";
 import { CameraStep } from "./steps/CameraStep";
 import { ChecklistStep } from "./steps/ChecklistStep";
+import { EmergencyStep } from "./steps/EmergencyStep";
 import { FormStep } from "./steps/FormStep";
 import { InvolvedManagementStep } from "./steps/InvolvedManagementStep";
 import { QuestionStep } from "./steps/QuestionStep";
@@ -83,6 +84,8 @@ function renderStep(step: Step, onNext: (nextId?: string) => void) {
       return <FormStep step={step} onNext={onNext} />;
     case "summary":
       return <SummaryStep step={step} />;
+    case "emergency":
+      return <EmergencyStep step={step} onNext={onNext} />;
     case "involved_management":
       return <InvolvedManagementStep step={step} onNext={onNext} />;
     default:
